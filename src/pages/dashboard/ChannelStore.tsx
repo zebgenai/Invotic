@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useChannels, useCreateChannel, useDeleteChannel } from '@/hooks/useChannels';
+import { useChannels, useCreateChannel, useUpdateChannel, useDeleteChannel } from '@/hooks/useChannels';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,18 +14,28 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Youtube, Plus, ExternalLink, Trash2, Users, Video, Search } from 'lucide-react';
+import { Youtube, Plus, ExternalLink, Trash2, Users, Video, Search, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
+import { YouTubeChannel } from '@/types/database';
 
 const ChannelStore: React.FC = () => {
-  const { role } = useAuth();
+  const { user, role } = useAuth();
   const { data: channels, isLoading } = useChannels();
   const createChannel = useCreateChannel();
+  const updateChannel = useUpdateChannel();
   const deleteChannel = useDeleteChannel();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingChannel, setEditingChannel] = useState<YouTubeChannel | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
+    channel_name: '',
+    channel_link: '',
+    creator_name: '',
+    description: '',
+  });
+  const [editFormData, setEditFormData] = useState({
     channel_name: '',
     channel_link: '',
     creator_name: '',
@@ -66,6 +76,51 @@ const ChannelStore: React.FC = () => {
     }
   };
 
+  const handleEdit = (channel: YouTubeChannel) => {
+    setEditingChannel(channel);
+    setEditFormData({
+      channel_name: channel.channel_name,
+      channel_link: channel.channel_link,
+      creator_name: channel.creator_name,
+      description: channel.description || '',
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingChannel) return;
+    
+    if (!editFormData.channel_name || !editFormData.channel_link || !editFormData.creator_name) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all required fields.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await updateChannel.mutateAsync({
+        id: editingChannel.id,
+        ...editFormData,
+      });
+      toast({
+        title: 'Channel updated!',
+        description: 'Your channel has been updated successfully.',
+      });
+      setIsEditDialogOpen(false);
+      setEditingChannel(null);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update channel. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleDelete = async (id: string) => {
     try {
       await deleteChannel.mutateAsync(id);
@@ -87,6 +142,14 @@ const ChannelStore: React.FC = () => {
       channel.channel_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       channel.creator_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const canEditChannel = (channel: YouTubeChannel) => {
+    return channel.user_id === user?.id || role === 'admin' || role === 'manager';
+  };
+
+  const canDeleteChannel = (channel: YouTubeChannel) => {
+    return channel.user_id === user?.id || role === 'admin' || role === 'manager';
+  };
 
   return (
     <div className="space-y-6">
@@ -233,7 +296,16 @@ const ChannelStore: React.FC = () => {
                     <ExternalLink className="w-4 h-4 mr-2" />
                     Visit Channel
                   </Button>
-                  {(role === 'admin' || role === 'manager') && (
+                  {canEditChannel(channel) && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleEdit(channel)}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  )}
+                  {canDeleteChannel(channel) && (
                     <Button
                       variant="outline"
                       size="icon"
@@ -252,6 +324,57 @@ const ChannelStore: React.FC = () => {
           ))}
         </div>
       )}
+
+      {/* Edit Channel Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="glass-card">
+          <DialogHeader>
+            <DialogTitle>Edit Channel</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit_creator_name">Your Name *</Label>
+              <Input
+                id="edit_creator_name"
+                placeholder="Enter your name"
+                value={editFormData.creator_name}
+                onChange={(e) => setEditFormData({ ...editFormData, creator_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_channel_name">Channel Name *</Label>
+              <Input
+                id="edit_channel_name"
+                placeholder="Enter channel name"
+                value={editFormData.channel_name}
+                onChange={(e) => setEditFormData({ ...editFormData, channel_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_channel_link">Channel Link *</Label>
+              <Input
+                id="edit_channel_link"
+                placeholder="https://youtube.com/@yourchannel"
+                value={editFormData.channel_link}
+                onChange={(e) => setEditFormData({ ...editFormData, channel_link: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_description">Description</Label>
+              <Textarea
+                id="edit_description"
+                placeholder="Tell us about your channel..."
+                value={editFormData.description}
+                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                rows={3}
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={updateChannel.isPending}>
+              {updateChannel.isPending ? 'Updating...' : 'Update Channel'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
