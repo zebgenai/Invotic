@@ -607,9 +607,7 @@ export type Database = {
           updated_at: string
           user_id: string
           video_count: number | null
-          view_count: number | null
           workspace_id: string | null
-          youtube_channel_id: string | null
         }
         Insert: {
           channel_link: string
@@ -622,9 +620,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           video_count?: number | null
-          view_count?: number | null
           workspace_id?: string | null
-          youtube_channel_id?: string | null
         }
         Update: {
           channel_link?: string
@@ -637,9 +633,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           video_count?: number | null
-          view_count?: number | null
           workspace_id?: string | null
-          youtube_channel_id?: string | null
         }
         Relationships: [
           {

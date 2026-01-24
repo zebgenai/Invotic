@@ -14,44 +14,23 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Youtube, Plus, ExternalLink, Trash2, Users, Video, Search, Eye, RefreshCw } from 'lucide-react';
+import { Youtube, Plus, ExternalLink, Trash2, Users, Video, Search } from 'lucide-react';
 import { format } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
-import ChannelStatsDashboard from '@/components/channels/ChannelStatsDashboard';
 
 const ChannelStore: React.FC = () => {
   const { role } = useAuth();
-  const { data: channels, isLoading, refetch } = useChannels();
+  const { data: channels, isLoading } = useChannels();
   const createChannel = useCreateChannel();
   const deleteChannel = useDeleteChannel();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [formData, setFormData] = useState({
     channel_name: '',
     channel_link: '',
     creator_name: '',
     description: '',
   });
-
-  const fetchYouTubeStats = async (channelId: string, channelLink: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('fetch-youtube-stats', {
-        body: { channel_id: channelId, channel_link: channelLink }
-      });
-
-      if (error) {
-        console.error('Error fetching YouTube stats:', error);
-        return null;
-      }
-
-      return data;
-    } catch (err) {
-      console.error('Error invoking function:', err);
-      return null;
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,30 +45,11 @@ const ChannelStore: React.FC = () => {
     }
 
     try {
-      const newChannel = await createChannel.mutateAsync(formData);
-      
-      // Fetch YouTube stats for the newly added channel
+      await createChannel.mutateAsync(formData);
       toast({
         title: 'Channel added!',
-        description: 'Fetching YouTube statistics...',
+        description: 'Your channel has been added to the store.',
       });
-
-      const stats = await fetchYouTubeStats(newChannel.id, formData.channel_link);
-      
-      if (stats?.success) {
-        toast({
-          title: 'Stats updated!',
-          description: `Found ${stats.subscriber_count.toLocaleString()} subscribers and ${stats.view_count.toLocaleString()} views.`,
-        });
-        refetch();
-      } else {
-        toast({
-          title: 'Channel added',
-          description: 'Could not fetch YouTube stats. You can try refreshing later.',
-          variant: 'default',
-        });
-      }
-
       setFormData({
         channel_name: '',
         channel_link: '',
@@ -122,30 +82,6 @@ const ChannelStore: React.FC = () => {
     }
   };
 
-  const handleRefreshAllStats = async () => {
-    if (!channels || channels.length === 0) return;
-    
-    setIsRefreshing(true);
-    toast({
-      title: 'Refreshing stats...',
-      description: 'This may take a moment.',
-    });
-
-    let successCount = 0;
-    for (const channel of channels) {
-      const stats = await fetchYouTubeStats(channel.id, channel.channel_link);
-      if (stats?.success) successCount++;
-    }
-
-    setIsRefreshing(false);
-    refetch();
-    
-    toast({
-      title: 'Stats refreshed!',
-      description: `Updated ${successCount} of ${channels.length} channels.`,
-    });
-  };
-
   const filteredChannels = channels?.filter(
     (channel) =>
       channel.channel_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -162,82 +98,62 @@ const ChannelStore: React.FC = () => {
             Browse and manage YouTube channels in the community.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {channels && channels.length > 0 && (
-            <Button 
-              variant="outline" 
-              onClick={handleRefreshAllStats}
-              disabled={isRefreshing}
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh Stats
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Channel
             </Button>
-          )}
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Channel
+          </DialogTrigger>
+          <DialogContent className="glass-card">
+            <DialogHeader>
+              <DialogTitle>Add Your Channel</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="creator_name">Your Name *</Label>
+                <Input
+                  id="creator_name"
+                  placeholder="Enter your name"
+                  value={formData.creator_name}
+                  onChange={(e) => setFormData({ ...formData, creator_name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="channel_name">Channel Name *</Label>
+                <Input
+                  id="channel_name"
+                  placeholder="Enter channel name"
+                  value={formData.channel_name}
+                  onChange={(e) => setFormData({ ...formData, channel_name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="channel_link">Channel Link *</Label>
+                <Input
+                  id="channel_link"
+                  placeholder="https://youtube.com/@yourchannel"
+                  value={formData.channel_link}
+                  onChange={(e) => setFormData({ ...formData, channel_link: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Tell us about your channel..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={createChannel.isPending}>
+                {createChannel.isPending ? 'Adding...' : 'Add Channel'}
               </Button>
-            </DialogTrigger>
-            <DialogContent className="glass-card">
-              <DialogHeader>
-                <DialogTitle>Add Your Channel</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="creator_name">Your Name *</Label>
-                  <Input
-                    id="creator_name"
-                    placeholder="Enter your name"
-                    value={formData.creator_name}
-                    onChange={(e) => setFormData({ ...formData, creator_name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="channel_name">Channel Name *</Label>
-                  <Input
-                    id="channel_name"
-                    placeholder="Enter channel name"
-                    value={formData.channel_name}
-                    onChange={(e) => setFormData({ ...formData, channel_name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="channel_link">Channel Link *</Label>
-                  <Input
-                    id="channel_link"
-                    placeholder="https://youtube.com/@yourchannel"
-                    value={formData.channel_link}
-                    onChange={(e) => setFormData({ ...formData, channel_link: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Supports formats: youtube.com/@handle, youtube.com/channel/ID, youtube.com/c/name
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Tell us about your channel..."
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={3}
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={createChannel.isPending}>
-                  {createChannel.isPending ? 'Adding...' : 'Add Channel'}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
-
-      {/* Stats Dashboard */}
-      {channels && channels.length > 0 && (
-        <ChannelStatsDashboard channels={channels} />
-      )}
 
       {/* Search */}
       <Card className="glass-card">
@@ -299,17 +215,13 @@ const ChannelStore: React.FC = () => {
                   </p>
                 )}
                 <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                  <div className="flex items-center gap-1" title="Subscribers">
+                  <div className="flex items-center gap-1">
                     <Users className="w-4 h-4" />
-                    <span>{(channel.subscriber_count || 0).toLocaleString()}</span>
+                    <span>{channel.subscriber_count.toLocaleString()}</span>
                   </div>
-                  <div className="flex items-center gap-1" title="Total Views">
-                    <Eye className="w-4 h-4" />
-                    <span>{(channel.view_count || 0).toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center gap-1" title="Videos">
+                  <div className="flex items-center gap-1">
                     <Video className="w-4 h-4" />
-                    <span>{channel.video_count || 0}</span>
+                    <span>{channel.video_count}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
