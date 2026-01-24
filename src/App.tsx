@@ -15,6 +15,10 @@ import TaskManagement from "./pages/dashboard/TaskManagement";
 import Announcements from "./pages/dashboard/Announcements";
 import Leaderboard from "./pages/dashboard/Leaderboard";
 import Settings from "./pages/dashboard/Settings";
+import Chat from "./pages/dashboard/Chat";
+import Forum from "./pages/dashboard/Forum";
+import Resources from "./pages/dashboard/Resources";
+import Analytics from "./pages/dashboard/Analytics";
 
 const queryClient = new QueryClient();
 
@@ -32,12 +36,18 @@ const App = () => (
               <Route index element={<DashboardHome />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="kyc" element={<UserManagement />} />
+              <Route path="team" element={<UserManagement />} />
               <Route path="channels" element={<ChannelStore />} />
               <Route path="channel" element={<ChannelStore />} />
               <Route path="tasks" element={<TaskManagement />} />
               <Route path="announcements" element={<Announcements />} />
               <Route path="leaderboard" element={<Leaderboard />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="chat" element={<Chat />} />
+              <Route path="forum" element={<Forum />} />
+              <Route path="resources" element={<Resources />} />
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="stats" element={<Analytics />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
             <Route path="*" element={<NotFound />} />
