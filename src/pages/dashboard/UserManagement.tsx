@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useProfiles, useUpdateKycStatus, useUpdateUserRole, useUserRoles } from '@/hooks/useProfiles';
+import { useProfiles, useUpdateKycStatus, useUpdateUserRole, useUserRoles, useDeleteKyc } from '@/hooks/useProfiles';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,9 +26,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Shield, Users, CheckCircle, XCircle, Clock, Eye, Download, FileText, Image as ImageIcon } from 'lucide-react';
+import { Search, Shield, Users, CheckCircle, XCircle, Clock, Eye, Download, FileText, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { AppRole, KycStatus } from '@/types/database';
 
@@ -37,6 +48,7 @@ const UserManagement: React.FC = () => {
   const { data: userRoles } = useUserRoles();
   const updateKyc = useUpdateKycStatus();
   const updateRole = useUpdateUserRole();
+  const deleteKyc = useDeleteKyc();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -122,6 +134,22 @@ const UserManagement: React.FC = () => {
       toast({
         title: 'Error',
         description: 'Failed to update KYC status. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteKyc = async (userId: string, documentUrl: string | null) => {
+    try {
+      await deleteKyc.mutateAsync({ userId, documentUrl });
+      toast({
+        title: 'KYC deleted',
+        description: 'KYC document and status have been cleared.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete KYC. Please try again.',
         variant: 'destructive',
       });
     }
@@ -405,6 +433,37 @@ const UserManagement: React.FC = () => {
                             >
                               Reset KYC
                             </Button>
+                          )}
+                          {(profile.kyc_document_url || profile.kyc_status !== 'pending') && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="w-3 h-3 mr-1" />
+                                  Delete KYC
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete KYC Data</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will permanently delete the KYC document and reset the verification status to pending. The user will need to resubmit their KYC documents.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    onClick={() => handleDeleteKyc(profile.user_id, profile.kyc_document_url)}
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           )}
                         </div>
                       </TableCell>
