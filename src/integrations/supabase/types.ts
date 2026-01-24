@@ -137,6 +137,7 @@ export type Database = {
           id: string
           is_broadcast: boolean
           is_group: boolean
+          is_public: boolean
           name: string | null
           workspace_id: string | null
         }
@@ -146,6 +147,7 @@ export type Database = {
           id?: string
           is_broadcast?: boolean
           is_group?: boolean
+          is_public?: boolean
           name?: string | null
           workspace_id?: string | null
         }
@@ -155,6 +157,7 @@ export type Database = {
           id?: string
           is_broadcast?: boolean
           is_group?: boolean
+          is_public?: boolean
           name?: string | null
           workspace_id?: string | null
         }

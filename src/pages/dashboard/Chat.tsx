@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom } from '@/hooks/useChat';
+import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom } from '@/hooks/useChat';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ import {
   MoreVertical,
   Smile,
   Paperclip,
+  Globe,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -39,12 +41,14 @@ const Chat: React.FC = () => {
   const { data: messages, isLoading: messagesLoading } = useMessages(selectedRoom);
   const sendMessage = useSendMessage();
   const createRoom = useCreateChatRoom();
+  const updateRoom = useUpdateChatRoom();
   const { toast } = useToast();
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomType, setNewRoomType] = useState<'private' | 'group' | 'broadcast'>('group');
+  const [isPublicRoom, setIsPublicRoom] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -89,17 +93,40 @@ const Chat: React.FC = () => {
         name: newRoomName.trim(),
         isGroup: newRoomType === 'group' || newRoomType === 'broadcast',
         isBroadcast: newRoomType === 'broadcast',
+        isPublic: isPublicRoom,
       });
       toast({
         title: 'Room created!',
-        description: `${newRoomName} has been created.`,
+        description: `${newRoomName} has been created${isPublicRoom ? ' as a public room' : ''}.`,
       });
       setNewRoomName('');
+      setIsPublicRoom(false);
       setIsCreateDialogOpen(false);
     } catch (error) {
       toast({
         title: 'Error',
         description: 'Failed to create room. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleTogglePublic = async (roomId: string, currentPublic: boolean) => {
+    try {
+      await updateRoom.mutateAsync({
+        roomId,
+        isPublic: !currentPublic,
+      });
+      toast({
+        title: !currentPublic ? 'Room is now public' : 'Room is now private',
+        description: !currentPublic 
+          ? 'All users will be added to this room automatically.' 
+          : 'New users will not be auto-added to this room.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update room visibility.',
         variant: 'destructive',
       });
     }
@@ -181,6 +208,20 @@ const Chat: React.FC = () => {
                         </Button>
                       </div>
                     </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+                      <div className="flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <Label htmlFor="public-toggle" className="cursor-pointer">Public Room</Label>
+                          <p className="text-xs text-muted-foreground">All users can see this room and its messages</p>
+                        </div>
+                      </div>
+                      <Switch
+                        id="public-toggle"
+                        checked={isPublicRoom}
+                        onCheckedChange={setIsPublicRoom}
+                      />
+                    </div>
                     <Button onClick={handleCreateRoom} className="w-full" disabled={createRoom.isPending}>
                       {createRoom.isPending ? 'Creating...' : 'Create Room'}
                     </Button>
@@ -222,9 +263,15 @@ const Chat: React.FC = () => {
                       {getRoomIcon(room)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{room.name || 'Private Chat'}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="font-medium truncate">{room.name || 'Private Chat'}</p>
+                        {(room as any).is_public && (
+                          <Globe className="w-3 h-3 text-primary flex-shrink-0" />
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground truncate">
                         {room.is_broadcast ? 'Broadcast' : room.is_group ? 'Group' : 'Direct'}
+                        {(room as any).is_public && ' • Public'}
                       </p>
                     </div>
                   </button>

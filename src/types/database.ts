@@ -77,6 +77,7 @@ export interface ChatRoom {
   workspace_id: string | null;
   is_group: boolean;
   is_broadcast: boolean;
+  is_public: boolean;
   created_by: string;
   created_at: string;
 }
