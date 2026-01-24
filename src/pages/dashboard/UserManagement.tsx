@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useProfiles, useUpdateKycStatus, useUpdateUserRole, useUserRoles } from '@/hooks/useProfiles';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,9 +20,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Shield, Users, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Search, Shield, Users, CheckCircle, XCircle, Clock, Eye, Download, FileText, Image as ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { AppRole, KycStatus } from '@/types/database';
 
@@ -34,6 +41,54 @@ const UserManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [kycFilter, setKycFilter] = useState<string>('all');
+  const [viewingDocument, setViewingDocument] = useState<{ url: string; name: string; type: string } | null>(null);
+
+  const getDocumentUrl = (filePath: string) => {
+    const { data } = supabase.storage.from('kyc-documents').getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const getSignedUrl = async (filePath: string) => {
+    const { data, error } = await supabase.storage
+      .from('kyc-documents')
+      .createSignedUrl(filePath, 3600); // 1 hour expiry
+    if (error) throw error;
+    return data.signedUrl;
+  };
+
+  const handleViewDocument = async (filePath: string, userName: string) => {
+    try {
+      const signedUrl = await getSignedUrl(filePath);
+      const fileType = filePath.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image';
+      setViewingDocument({ url: signedUrl, name: userName, type: fileType });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load document. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDownloadDocument = async (filePath: string, userName: string) => {
+    try {
+      const signedUrl = await getSignedUrl(filePath);
+      const fileExt = filePath.split('.').pop();
+      const link = document.createElement('a');
+      link.href = signedUrl;
+      link.download = `KYC_${userName.replace(/\s+/g, '_')}.${fileExt}`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to download document. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const getUserRole = (userId: string): AppRole => {
     const roleEntry = userRoles?.find((r) => r.user_id === userId);
@@ -241,6 +296,7 @@ const UserManagement: React.FC = () => {
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>KYC Status</TableHead>
+                    <TableHead>KYC Document</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -280,6 +336,42 @@ const UserManagement: React.FC = () => {
                         </Select>
                       </TableCell>
                       <TableCell>{getKycBadge(profile.kyc_status)}</TableCell>
+                      <TableCell>
+                        {profile.kyc_document_url ? (
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              {profile.kyc_document_url.toLowerCase().endsWith('.pdf') ? (
+                                <FileText className="w-4 h-4" />
+                              ) : (
+                                <ImageIcon className="w-4 h-4" />
+                              )}
+                              <span className="max-w-[80px] truncate">
+                                {profile.kyc_document_url.split('/').pop()}
+                              </span>
+                            </div>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => handleViewDocument(profile.kyc_document_url!, profile.full_name)}
+                              title="View Document"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => handleDownloadDocument(profile.kyc_document_url!, profile.full_name)}
+                              title="Download Document"
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No document</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-muted-foreground">
                         {format(new Date(profile.created_at), 'MMM d, yyyy')}
                       </TableCell>
@@ -324,6 +416,42 @@ const UserManagement: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Document Preview Dialog */}
+      <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>KYC Document - {viewingDocument?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center p-4">
+            {viewingDocument?.type === 'pdf' ? (
+              <iframe
+                src={viewingDocument.url}
+                className="w-full h-[70vh] rounded-lg border border-border"
+                title="KYC Document"
+              />
+            ) : (
+              <img
+                src={viewingDocument?.url}
+                alt="KYC Document"
+                className="max-w-full max-h-[70vh] object-contain rounded-lg"
+              />
+            )}
+            <div className="flex gap-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => viewingDocument && window.open(viewingDocument.url, '_blank')}
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Open in New Tab
+              </Button>
+              <Button onClick={() => setViewingDocument(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
