@@ -127,11 +127,13 @@ export const useCreateChatRoom = () => {
       name, 
       isGroup = false,
       isBroadcast = false,
+      isPublic = false,
       memberIds = []
     }: { 
       name?: string; 
       isGroup?: boolean;
       isBroadcast?: boolean;
+      isPublic?: boolean;
       memberIds?: string[];
     }) => {
       // Create room
@@ -141,6 +143,7 @@ export const useCreateChatRoom = () => {
           name,
           is_group: isGroup,
           is_broadcast: isBroadcast,
+          is_public: isPublic,
           created_by: user?.id,
         })
         .select()
@@ -148,7 +151,7 @@ export const useCreateChatRoom = () => {
 
       if (roomError) throw roomError;
 
-      // Add creator as member
+      // Add creator as member (trigger will add others for public rooms)
       const allMembers = [user?.id, ...memberIds].filter(Boolean);
       
       for (const memberId of allMembers) {
@@ -162,6 +165,33 @@ export const useCreateChatRoom = () => {
       }
 
       return room;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
+    },
+  });
+};
+
+export const useUpdateChatRoom = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      roomId, 
+      isPublic 
+    }: { 
+      roomId: string; 
+      isPublic: boolean;
+    }) => {
+      const { data, error } = await supabase
+        .from('chat_rooms')
+        .update({ is_public: isPublic })
+        .eq('id', roomId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
