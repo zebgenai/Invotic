@@ -338,10 +338,12 @@ export type Database = {
           id: string
           is_active: boolean
           kyc_document_url: string | null
+          kyc_gmail: string | null
           kyc_reviewed_at: string | null
           kyc_reviewed_by: string | null
           kyc_status: Database["public"]["Enums"]["kyc_status"]
           kyc_submitted_at: string | null
+          kyc_whatsapp: string | null
           updated_at: string
           user_id: string
         }
@@ -353,10 +355,12 @@ export type Database = {
           id?: string
           is_active?: boolean
           kyc_document_url?: string | null
+          kyc_gmail?: string | null
           kyc_reviewed_at?: string | null
           kyc_reviewed_by?: string | null
           kyc_status?: Database["public"]["Enums"]["kyc_status"]
           kyc_submitted_at?: string | null
+          kyc_whatsapp?: string | null
           updated_at?: string
           user_id: string
         }
@@ -368,10 +372,12 @@ export type Database = {
           id?: string
           is_active?: boolean
           kyc_document_url?: string | null
+          kyc_gmail?: string | null
           kyc_reviewed_at?: string | null
           kyc_reviewed_by?: string | null
           kyc_status?: Database["public"]["Enums"]["kyc_status"]
           kyc_submitted_at?: string | null
+          kyc_whatsapp?: string | null
           updated_at?: string
           user_id?: string
         }
