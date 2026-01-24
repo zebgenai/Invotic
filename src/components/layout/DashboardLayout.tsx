@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from './Sidebar';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Bell } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const DashboardLayout: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, profile } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   if (loading) {
@@ -36,6 +38,24 @@ const DashboardLayout: React.FC = () => {
           sidebarCollapsed ? 'ml-20' : 'ml-64'
         )}
       >
+        {/* Top Header Bar */}
+        <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-sm">
+          <div className="flex items-center justify-between px-6 py-3">
+            <div>
+              <p className="text-sm text-muted-foreground">Welcome back,</p>
+              <h2 className="font-semibold">{profile?.full_name || 'User'}</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-5 w-5" />
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                  3
+                </span>
+              </Button>
+              <ThemeToggle />
+            </div>
+          </div>
+        </header>
         <div className="p-6">
           <Outlet />
         </div>

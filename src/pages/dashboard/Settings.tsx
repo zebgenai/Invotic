@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/components/ThemeProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,10 +9,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { Settings as SettingsIcon, User, Bell, Shield, Palette } from 'lucide-react';
+import { Settings as SettingsIcon, User, Bell, Shield, Palette, Sun, Moon, Monitor } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Settings: React.FC = () => {
   const { profile, role } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -82,17 +86,28 @@ const Settings: React.FC = () => {
                 Identity verification status
               </p>
             </div>
-            <Badge
-              className={
-                profile?.kyc_status === 'approved'
-                  ? 'badge-success'
-                  : profile?.kyc_status === 'pending'
-                  ? 'badge-warning'
-                  : 'badge-error'
-              }
-            >
-              {profile?.kyc_status || 'pending'}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge
+                className={
+                  profile?.kyc_status === 'approved'
+                    ? 'badge-success'
+                    : profile?.kyc_status === 'pending'
+                    ? 'badge-warning'
+                    : 'badge-error'
+                }
+              >
+                {profile?.kyc_status || 'pending'}
+              </Badge>
+              {profile?.kyc_status !== 'approved' && role === 'user' && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate('/dashboard/kyc-submit')}
+                >
+                  Verify Now
+                </Button>
+              )}
+            </div>
           </div>
 
           <Button>Save Changes</Button>
@@ -161,12 +176,40 @@ const Settings: React.FC = () => {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium">Dark Mode</p>
+              <p className="font-medium">Theme</p>
               <p className="text-sm text-muted-foreground">
-                Use dark theme (currently enabled)
+                Choose your preferred color scheme
               </p>
             </div>
-            <Switch defaultChecked disabled />
+            <div className="flex items-center gap-2">
+              <Button
+                variant={theme === 'light' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTheme('light')}
+                className="gap-2"
+              >
+                <Sun className="w-4 h-4" />
+                Light
+              </Button>
+              <Button
+                variant={theme === 'dark' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTheme('dark')}
+                className="gap-2"
+              >
+                <Moon className="w-4 h-4" />
+                Dark
+              </Button>
+              <Button
+                variant={theme === 'system' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTheme('system')}
+                className="gap-2"
+              >
+                <Monitor className="w-4 h-4" />
+                System
+              </Button>
+            </div>
           </div>
           <Separator />
           <div className="flex items-center justify-between">
