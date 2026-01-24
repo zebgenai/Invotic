@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { 
   Upload, 
@@ -17,7 +19,9 @@ import {
   Shield,
   Loader2,
   Image as ImageIcon,
-  X
+  X,
+  Mail,
+  Phone
 } from 'lucide-react';
 
 const KYCSubmission: React.FC = () => {
@@ -25,6 +29,8 @@ const KYCSubmission: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [gmail, setGmail] = useState(profile?.kyc_gmail || '');
+  const [whatsapp, setWhatsapp] = useState(profile?.kyc_whatsapp || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,8 +69,39 @@ const KYCSubmission: React.FC = () => {
     }
   };
 
+  const validateGmail = (email: string) => {
+    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i;
+    return gmailRegex.test(email);
+  };
+
+  const validateWhatsapp = (phone: string) => {
+    // Basic phone validation - at least 10 digits
+    const phoneRegex = /^\+?[1-9]\d{9,14}$/;
+    return phoneRegex.test(phone.replace(/[\s-]/g, ''));
+  };
+
   const handleUpload = async () => {
     if (!selectedFile || !user) return;
+
+    // Validate Gmail
+    if (!gmail.trim()) {
+      toast.error('Please enter your Gmail address');
+      return;
+    }
+    if (!validateGmail(gmail)) {
+      toast.error('Please enter a valid Gmail address (must end with @gmail.com)');
+      return;
+    }
+
+    // Validate WhatsApp
+    if (!whatsapp.trim()) {
+      toast.error('Please enter your WhatsApp number');
+      return;
+    }
+    if (!validateWhatsapp(whatsapp)) {
+      toast.error('Please enter a valid WhatsApp number (include country code, e.g., +1234567890)');
+      return;
+    }
 
     setUploading(true);
     try {
@@ -83,13 +120,15 @@ const KYCSubmission: React.FC = () => {
         .from('kyc-documents')
         .getPublicUrl(fileName);
 
-      // Update profile with KYC document URL
+      // Update profile with KYC document URL and contact info
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
           kyc_document_url: fileName,
           kyc_status: 'pending',
           kyc_submitted_at: new Date().toISOString(),
+          kyc_gmail: gmail.trim().toLowerCase(),
+          kyc_whatsapp: whatsapp.trim(),
         })
         .eq('user_id', user.id);
 
@@ -197,6 +236,44 @@ const KYCSubmission: React.FC = () => {
               </div>
             </div>
 
+            {/* Contact Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="gmail" className="flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  Gmail Address <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="gmail"
+                  type="email"
+                  placeholder="yourname@gmail.com"
+                  value={gmail}
+                  onChange={(e) => setGmail(e.target.value)}
+                  className="bg-background/50"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Must be a valid Gmail address
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="whatsapp" className="flex items-center gap-2">
+                  <Phone className="w-4 h-4" />
+                  WhatsApp Number <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="whatsapp"
+                  type="tel"
+                  placeholder="+1234567890"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
+                  className="bg-background/50"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Include country code (e.g., +92, +1)
+                </p>
+              </div>
+            </div>
+
             {/* Upload Area */}
             <div 
               className={`
@@ -267,7 +344,7 @@ const KYCSubmission: React.FC = () => {
             <div className="flex justify-end">
               <Button 
                 onClick={handleUpload}
-                disabled={!selectedFile || uploading}
+                disabled={!selectedFile || uploading || !gmail.trim() || !whatsapp.trim()}
                 className="min-w-[150px]"
               >
                 {uploading ? (

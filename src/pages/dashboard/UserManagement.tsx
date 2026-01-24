@@ -39,7 +39,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Shield, Users, CheckCircle, XCircle, Clock, Eye, Download, FileText, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { Search, Shield, Users, CheckCircle, XCircle, Clock, Eye, Download, FileText, Image as ImageIcon, Trash2, Mail, Phone } from 'lucide-react';
 import { format } from 'date-fns';
 import { AppRole, KycStatus } from '@/types/database';
 
@@ -324,6 +324,7 @@ const UserManagement: React.FC = () => {
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>KYC Status</TableHead>
+                    <TableHead>Contact Info</TableHead>
                     <TableHead>KYC Document</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead>Actions</TableHead>
@@ -364,6 +365,40 @@ const UserManagement: React.FC = () => {
                         </Select>
                       </TableCell>
                       <TableCell>{getKycBadge(profile.kyc_status)}</TableCell>
+                      <TableCell>
+                        {(profile.kyc_gmail || profile.kyc_whatsapp) ? (
+                          <div className="space-y-1">
+                            {profile.kyc_gmail && (
+                              <div className="flex items-center gap-1 text-sm">
+                                <Mail className="w-3 h-3 text-muted-foreground" />
+                                <a 
+                                  href={`mailto:${profile.kyc_gmail}`}
+                                  className="text-primary hover:underline truncate max-w-[150px]"
+                                  title={profile.kyc_gmail}
+                                >
+                                  {profile.kyc_gmail}
+                                </a>
+                              </div>
+                            )}
+                            {profile.kyc_whatsapp && (
+                              <div className="flex items-center gap-1 text-sm">
+                                <Phone className="w-3 h-3 text-muted-foreground" />
+                                <a 
+                                  href={`https://wa.me/${profile.kyc_whatsapp.replace(/[^0-9]/g, '')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline"
+                                  title={profile.kyc_whatsapp}
+                                >
+                                  {profile.kyc_whatsapp}
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Not provided</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {profile.kyc_document_url ? (
                           <div className="flex items-center gap-2">

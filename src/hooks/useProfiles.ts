@@ -82,6 +82,8 @@ export const useDeleteKyc = () => {
           kyc_submitted_at: null,
           kyc_reviewed_at: null,
           kyc_reviewed_by: null,
+          kyc_gmail: null,
+          kyc_whatsapp: null,
         })
         .eq('user_id', userId);
 

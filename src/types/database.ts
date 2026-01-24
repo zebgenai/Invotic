@@ -14,6 +14,8 @@ export interface Profile {
   kyc_submitted_at: string | null;
   kyc_reviewed_at: string | null;
   kyc_reviewed_by: string | null;
+  kyc_gmail: string | null;
+  kyc_whatsapp: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
