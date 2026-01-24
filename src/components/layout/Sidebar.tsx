@@ -17,6 +17,7 @@ import {
   Shield,
   ChevronLeft,
   ChevronRight,
+  FileCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -55,6 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
   const userItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: FileCheck, label: 'KYC Verification', path: '/dashboard/kyc-submit' },
     { icon: Youtube, label: 'My Channel', path: '/dashboard/channel' },
     { icon: CheckSquare, label: 'Tasks', path: '/dashboard/tasks' },
     { icon: MessageCircle, label: 'Chat', path: '/dashboard/chat' },
