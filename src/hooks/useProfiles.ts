@@ -51,6 +51,48 @@ export const useUpdateKycStatus = () => {
   });
 };
 
+export const useDeleteKyc = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      userId, 
+      documentUrl 
+    }: { 
+      userId: string; 
+      documentUrl: string | null;
+    }) => {
+      // Delete the document from storage if it exists
+      if (documentUrl) {
+        const { error: storageError } = await supabase.storage
+          .from('kyc-documents')
+          .remove([documentUrl]);
+        
+        if (storageError) {
+          console.error('Failed to delete KYC document from storage:', storageError);
+        }
+      }
+
+      // Reset KYC fields in the profile
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          kyc_status: 'pending',
+          kyc_document_url: null,
+          kyc_submitted_at: null,
+          kyc_reviewed_at: null,
+          kyc_reviewed_by: null,
+        })
+        .eq('user_id', userId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+    },
+  });
+};
+
 export const useUpdateUserRole = () => {
   const queryClient = useQueryClient();
 
