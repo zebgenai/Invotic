@@ -129,47 +129,47 @@ const Chat: React.FC = () => {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Messages</CardTitle>
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="icon" variant="ghost">
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="glass-card">
-                <DialogHeader>
-                  <DialogTitle>Create Chat Room</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Room Name</Label>
-                    <Input
-                      placeholder="Enter room name"
-                      value={newRoomName}
-                      onChange={(e) => setNewRoomName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Room Type</Label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <Button
-                        variant={newRoomType === 'group' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setNewRoomType('group')}
-                        className="w-full"
-                      >
-                        <Hash className="w-4 h-4 mr-1" />
-                        Group
-                      </Button>
-                      <Button
-                        variant={newRoomType === 'private' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setNewRoomType('private')}
-                        className="w-full"
-                      >
-                        <MessageCircle className="w-4 h-4 mr-1" />
-                        Private
-                      </Button>
-                      {role === 'admin' && (
+            {(role === 'admin' || role === 'manager') && (
+              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="icon" variant="ghost" title="Create Room">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="glass-card">
+                  <DialogHeader>
+                    <DialogTitle>Create Chat Room</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Room Name</Label>
+                      <Input
+                        placeholder="Enter room name"
+                        value={newRoomName}
+                        onChange={(e) => setNewRoomName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Room Type</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <Button
+                          variant={newRoomType === 'group' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setNewRoomType('group')}
+                          className="w-full"
+                        >
+                          <Hash className="w-4 h-4 mr-1" />
+                          Group
+                        </Button>
+                        <Button
+                          variant={newRoomType === 'private' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setNewRoomType('private')}
+                          className="w-full"
+                        >
+                          <MessageCircle className="w-4 h-4 mr-1" />
+                          Private
+                        </Button>
                         <Button
                           variant={newRoomType === 'broadcast' ? 'default' : 'outline'}
                           size="sm"
@@ -179,15 +179,15 @@ const Chat: React.FC = () => {
                           <Megaphone className="w-4 h-4 mr-1" />
                           Broadcast
                         </Button>
-                      )}
+                      </div>
                     </div>
+                    <Button onClick={handleCreateRoom} className="w-full" disabled={createRoom.isPending}>
+                      {createRoom.isPending ? 'Creating...' : 'Create Room'}
+                    </Button>
                   </div>
-                  <Button onClick={handleCreateRoom} className="w-full" disabled={createRoom.isPending}>
-                    {createRoom.isPending ? 'Creating...' : 'Create Room'}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
           <div className="relative mt-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

@@ -42,6 +42,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Users, label: 'User Management', path: '/dashboard/users' },
     { icon: Shield, label: 'KYC Review', path: '/dashboard/kyc' },
+    { icon: Youtube, label: 'All Channels', path: '/dashboard/channels' },
+    { icon: CheckSquare, label: 'All Tasks', path: '/dashboard/tasks' },
+    { icon: MessageCircle, label: 'Chat Rooms', path: '/dashboard/chat' },
     { icon: Megaphone, label: 'Announcements', path: '/dashboard/announcements' },
     { icon: BarChart3, label: 'Analytics', path: '/dashboard/analytics' },
   ];
