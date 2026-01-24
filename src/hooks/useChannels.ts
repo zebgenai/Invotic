@@ -7,24 +7,18 @@ export const useChannels = () => {
   const { user, role } = useAuth();
 
   return useQuery({
-    queryKey: ['channels'],
+    queryKey: ['channels', role],
     queryFn: async () => {
-      let query = supabase
+      // RLS policies handle visibility - admins/managers see all, users see their own
+      const { data, error } = await supabase
         .from('youtube_channels')
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Users can only see their own channels
-      if (role === 'user') {
-        query = query.eq('user_id', user?.id);
-      }
-
-      const { data, error } = await query;
-
       if (error) throw error;
       return data as YouTubeChannel[];
     },
-    enabled: !!user,
+    enabled: !!user && role !== null,
   });
 };
 
