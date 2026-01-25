@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import sherazPhoto from "@/assets/sheraz-khan.jpeg";
 import { Button } from "@/components/ui/button";
 import { 
   Sparkles, 
@@ -170,9 +171,11 @@ const Index = () => {
               {/* Avatar */}
               <div className="flex-shrink-0">
                 <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-primary to-accent p-1">
-                  <div className="w-full h-full rounded-full bg-background flex items-center justify-center">
-                    <span className="text-4xl md:text-5xl font-display font-bold gradient-text">SK</span>
-                  </div>
+                  <img 
+                    src={sherazPhoto} 
+                    alt="Sheraz Khan" 
+                    className="w-full h-full rounded-full object-cover"
+                  />
                 </div>
               </div>
               
