@@ -106,45 +106,94 @@ const Index = () => {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-8 animate-fade-in">
             <Zap className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-primary">The Future of Creator Management</span>
+            <span className="text-sm font-medium text-primary">YouTube Automation Partnership</span>
           </div>
 
           {/* Heading */}
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-display font-bold mb-6 animate-fade-in leading-tight">
-            Manage Your
+            Want to Earn via
             <br />
-            <span className="gradient-text">Creator Empire</span>
+            <span className="gradient-text">YouTube Automation?</span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            The all-in-one platform for managing creators, tracking performance, and building a thriving content community.
+          <h2 className="text-2xl md:text-3xl font-display font-semibold text-foreground mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            Let's Do It Together.
+          </h2>
+
+          <p className="text-xl md:text-2xl text-muted-foreground mb-4 max-w-3xl mx-auto animate-fade-in" style={{ animationDelay: '0.15s' }}>
+            I'm <span className="text-primary font-semibold">Sheraz Khan</span>, and I'm looking for partners. Use my 6 years of experience to skip the struggle and start your YouTube journey for free.
           </p>
 
+          {/* The Message */}
+          <div className="glass-card p-6 max-w-2xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <p className="text-lg md:text-xl text-foreground font-medium">
+              <span className="text-success">No fees.</span> <span className="text-info">No fluff.</span> Just <span className="text-primary">100% actionable YouTube Automation</span> and a partnership built for growth.
+            </p>
+          </div>
+
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-20 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-20 animate-fade-in" style={{ animationDelay: '0.25s' }}>
             <Button size="lg" onClick={() => navigate('/auth')} className="text-lg px-8 h-14">
-              Start Free Trial
+              Join as Partner
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
             <Button size="lg" variant="outline" onClick={() => navigate('/auth')} className="h-14">
               <Shield className="w-5 h-5 mr-2" />
-              View Demo
+              Learn More
             </Button>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-8 max-w-lg mx-auto animate-fade-in" style={{ animationDelay: '0.3s' }}>
             <div className="text-center">
-              <p className="text-3xl md:text-4xl font-bold gradient-text">10K+</p>
-              <p className="text-sm text-muted-foreground">Creators</p>
+              <p className="text-3xl md:text-4xl font-bold gradient-text">6+</p>
+              <p className="text-sm text-muted-foreground">Years Experience</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl md:text-4xl font-bold gradient-text">500+</p>
-              <p className="text-sm text-muted-foreground">Teams</p>
+              <p className="text-3xl md:text-4xl font-bold gradient-text">100%</p>
+              <p className="text-sm text-muted-foreground">Free to Start</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl md:text-4xl font-bold gradient-text">99%</p>
-              <p className="text-sm text-muted-foreground">Uptime</p>
+              <p className="text-3xl md:text-4xl font-bold gradient-text">0</p>
+              <p className="text-sm text-muted-foreground">Hidden Fees</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Founder Portfolio Section */}
+      <section className="relative z-10 px-6 pb-20">
+        <div className="max-w-4xl mx-auto">
+          <div className="glass-card p-8 md:p-12 relative overflow-hidden animate-fade-in">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
+            <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+              {/* Avatar */}
+              <div className="flex-shrink-0">
+                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-primary to-accent p-1">
+                  <div className="w-full h-full rounded-full bg-background flex items-center justify-center">
+                    <span className="text-4xl md:text-5xl font-display font-bold gradient-text">SK</span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Content */}
+              <div className="text-center md:text-left">
+                <h3 className="text-2xl md:text-3xl font-display font-bold mb-2">Sheraz Khan</h3>
+                <p className="text-primary font-medium mb-4">Founder & YouTube Automation Expert</p>
+                <p className="text-muted-foreground text-lg leading-relaxed">
+                  I started in <span className="text-foreground font-semibold">2020</span>. After <span className="text-foreground font-semibold">6 years</span> of trial and error, I created this portal to help others earn without making the same mistakes I did.
+                </p>
+                <div className="flex items-center gap-4 mt-6 justify-center md:justify-start">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Youtube className="w-4 h-4 text-destructive" />
+                    <span>YouTube Expert</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Trophy className="w-4 h-4 text-warning" />
+                    <span>Since 2020</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
