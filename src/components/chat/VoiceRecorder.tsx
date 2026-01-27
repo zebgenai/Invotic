@@ -1,6 +1,6 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, forwardRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Mic, Square, Loader2 } from 'lucide-react';
+import { Mic, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface VoiceRecorderProps {
@@ -8,10 +8,10 @@ interface VoiceRecorderProps {
   disabled?: boolean;
 }
 
-export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
+export const VoiceRecorder = forwardRef<HTMLDivElement, VoiceRecorderProps>(({
   onRecordingComplete,
   disabled = false,
-}) => {
+}, ref) => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -92,7 +92,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div ref={ref} className="flex items-center gap-2">
       {isRecording && (
         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-destructive/10 animate-pulse">
           <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
@@ -122,6 +122,8 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       </Button>
     </div>
   );
-};
+});
+
+VoiceRecorder.displayName = 'VoiceRecorder';
 
 export default VoiceRecorder;

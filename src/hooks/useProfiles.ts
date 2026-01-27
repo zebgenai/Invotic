@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Profile, KycStatus } from '@/types/database';
+import { Profile, KycStatus, AppRole } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const useProfiles = () => {
@@ -91,6 +91,36 @@ export const useDeleteKyc = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
+    },
+  });
+};
+
+export const useDeleteUserProfile = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId }: { userId: string }) => {
+      // Delete the user's profile - this will cascade to related data
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', userId);
+
+      if (profileError) throw profileError;
+
+      // Delete the user's role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      if (roleError) {
+        console.error('Failed to delete user role:', roleError);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['user-roles'] });
     },
   });
 };
