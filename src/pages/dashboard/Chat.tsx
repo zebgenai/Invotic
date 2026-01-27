@@ -1,55 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom, useDeleteMessage } from '@/hooks/useChat';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Switch } from '@/components/ui/switch';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import {
-  MessageCircle,
-  Plus,
-  Send,
-  Users,
-  Hash,
-  Megaphone,
-  Search,
-  MoreVertical,
-  Smile,
-  Paperclip,
-  Globe,
-  Mic,
-  Play,
-  Pause,
-  Loader2,
-  Trash2,
-} from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
-import VoiceRecorder from '@/components/chat/VoiceRecorder';
+import ChatSidebar from '@/components/chat/ChatSidebar';
+import ChatArea from '@/components/chat/ChatArea';
 
 const Chat: React.FC = () => {
   const { user, profile, role } = useAuth();
@@ -71,16 +27,6 @@ const Chat: React.FC = () => {
   const [isUploadingVoice, setIsUploadingVoice] = useState(false);
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,7 +52,6 @@ const Chat: React.FC = () => {
 
     setIsUploadingVoice(true);
     try {
-      // Upload audio to storage
       const fileName = `voice-messages/${user.id}/${Date.now()}.webm`;
       const { error: uploadError } = await supabase.storage
         .from('chat-files')
@@ -114,12 +59,10 @@ const Chat: React.FC = () => {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: urlData } = supabase.storage
         .from('chat-files')
         .getPublicUrl(fileName);
 
-      // Send message with audio URL
       await sendMessage.mutateAsync({
         roomId: selectedRoom,
         content: '🎤 Voice message',
@@ -147,7 +90,6 @@ const Chat: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file || !selectedRoom || !user) return;
 
-    // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast({
         title: 'File too large',
@@ -191,9 +133,7 @@ const Chat: React.FC = () => {
       });
     }
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    e.target.value = '';
   };
 
   const playAudio = (audioUrl: string, messageId: string) => {
@@ -249,32 +189,6 @@ const Chat: React.FC = () => {
     }
   };
 
-  const handleTogglePublic = async (roomId: string, currentPublic: boolean) => {
-    try {
-      await updateRoom.mutateAsync({
-        roomId,
-        isPublic: !currentPublic,
-      });
-      toast({
-        title: !currentPublic ? 'Room is now public' : 'Room is now private',
-        description: !currentPublic 
-          ? 'All users will be added to this room automatically.' 
-          : 'New users will not be auto-added to this room.',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update room visibility.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const getSenderProfile = (senderId: string) => {
-    if (senderId === user?.id) return profile;
-    return profiles?.find((p) => p.user_id === senderId);
-  };
-
   const handleDeleteMessage = async (messageId: string) => {
     if (!selectedRoom) return;
     try {
@@ -292,395 +206,59 @@ const Chat: React.FC = () => {
     }
   };
 
-  const selectedRoomData = rooms?.find((r) => r.id === selectedRoom);
-
-  const getRoomIcon = (room: typeof rooms extends (infer T)[] | undefined ? T : never) => {
-    if (room?.is_broadcast) return <Megaphone className="w-4 h-4" />;
-    if (room?.is_group) return <Hash className="w-4 h-4" />;
-    return <MessageCircle className="w-4 h-4" />;
+  const getSenderProfile = (senderId: string) => {
+    if (senderId === user?.id) return profile;
+    return profiles?.find((p) => p.user_id === senderId);
   };
 
-  const filteredRooms = rooms?.filter((room) =>
-    room.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const selectedRoomData = rooms?.find((r) => r.id === selectedRoom);
+
+  // Transform rooms data to include is_public
+  const transformedRooms = rooms?.map(room => ({
+    ...room,
+    is_public: (room as any).is_public || false,
+  }));
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] gap-6">
-      {/* Rooms Sidebar */}
-      <Card className="glass-card w-80 flex flex-col">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Messages</CardTitle>
-            {(role === 'admin' || role === 'manager') && (
-              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="icon" variant="ghost" title="Create Room">
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="glass-card">
-                  <DialogHeader>
-                    <DialogTitle>Create Chat Room</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Room Name</Label>
-                      <Input
-                        placeholder="Enter room name"
-                        value={newRoomName}
-                        onChange={(e) => setNewRoomName(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Room Type</Label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <Button
-                          variant={newRoomType === 'group' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setNewRoomType('group')}
-                          className="w-full"
-                        >
-                          <Hash className="w-4 h-4 mr-1" />
-                          Group
-                        </Button>
-                        <Button
-                          variant={newRoomType === 'private' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setNewRoomType('private')}
-                          className="w-full"
-                        >
-                          <MessageCircle className="w-4 h-4 mr-1" />
-                          Private
-                        </Button>
-                        <Button
-                          variant={newRoomType === 'broadcast' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setNewRoomType('broadcast')}
-                          className="w-full"
-                        >
-                          <Megaphone className="w-4 h-4 mr-1" />
-                          Broadcast
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
-                      <div className="flex items-center gap-2">
-                        <Globe className="w-4 h-4 text-muted-foreground" />
-                        <div>
-                          <Label htmlFor="public-toggle" className="cursor-pointer">Public Room</Label>
-                          <p className="text-xs text-muted-foreground">All users can see this room and its messages</p>
-                        </div>
-                      </div>
-                      <Switch
-                        id="public-toggle"
-                        checked={isPublicRoom}
-                        onCheckedChange={setIsPublicRoom}
-                      />
-                    </div>
-                    <Button onClick={handleCreateRoom} className="w-full" disabled={createRoom.isPending}>
-                      {createRoom.isPending ? 'Creating...' : 'Create Room'}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            )}
-          </div>
-          <div className="relative mt-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search..."
-              className="pl-9"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="flex-1 overflow-hidden p-0">
-          <ScrollArea className="h-full">
-            <div className="px-4 space-y-1">
-              {roomsLoading ? (
-                <p className="text-center text-muted-foreground py-8">Loading...</p>
-              ) : filteredRooms?.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No rooms yet</p>
-              ) : (
-                filteredRooms?.map((room) => (
-                  <button
-                    key={room.id}
-                    onClick={() => setSelectedRoom(room.id)}
-                    className={cn(
-                      'w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left',
-                      selectedRoom === room.id
-                        ? 'bg-primary/10 text-primary'
-                        : 'hover:bg-secondary'
-                    )}
-                  >
-                    <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                      {getRoomIcon(room)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1">
-                        <p className="font-medium truncate">{room.name || 'Private Chat'}</p>
-                        {(room as any).is_public && (
-                          <Globe className="w-3 h-3 text-primary flex-shrink-0" />
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {room.is_broadcast ? 'Broadcast' : room.is_group ? 'Group' : 'Direct'}
-                        {(room as any).is_public && ' • Public'}
-                      </p>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          </ScrollArea>
-        </CardContent>
-      </Card>
+    <div className="flex h-[calc(100vh-7rem)] gap-4">
+      <ChatSidebar
+        rooms={transformedRooms}
+        roomsLoading={roomsLoading}
+        selectedRoom={selectedRoom}
+        setSelectedRoom={setSelectedRoom}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        isCreateDialogOpen={isCreateDialogOpen}
+        setIsCreateDialogOpen={setIsCreateDialogOpen}
+        newRoomName={newRoomName}
+        setNewRoomName={setNewRoomName}
+        newRoomType={newRoomType}
+        setNewRoomType={setNewRoomType}
+        isPublicRoom={isPublicRoom}
+        setIsPublicRoom={setIsPublicRoom}
+        handleCreateRoom={handleCreateRoom}
+        createRoomPending={createRoom.isPending}
+        canCreateRoom={role === 'admin' || role === 'manager'}
+      />
 
-      {/* Chat Area */}
-      <Card className="glass-card flex-1 flex flex-col">
-        {selectedRoom ? (
-          <>
-            {/* Chat Header */}
-            <CardHeader className="border-b border-border pb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    {selectedRoomData && getRoomIcon(selectedRoomData)}
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">
-                      {selectedRoomData?.name || 'Private Chat'}
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedRoomData?.is_broadcast
-                        ? 'Broadcast Channel'
-                        : selectedRoomData?.is_group
-                        ? 'Group Chat'
-                        : 'Direct Message'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon">
-                    <Users className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon">
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-
-            {/* Messages */}
-            <CardContent className="flex-1 overflow-hidden p-0">
-              <ScrollArea className="h-full p-4">
-                {messagesLoading ? (
-                  <p className="text-center text-muted-foreground py-8">Loading messages...</p>
-                ) : messages?.length === 0 ? (
-                  <div className="text-center py-12">
-                    <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No messages yet</p>
-                    <p className="text-sm text-muted-foreground">Start the conversation!</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {messages?.map((message) => {
-                      const sender = getSenderProfile(message.sender_id);
-                      const isOwn = message.sender_id === user?.id;
-
-                      return (
-                        <div
-                          key={message.id}
-                          className={cn(
-                            'flex gap-3 group',
-                            isOwn && 'flex-row-reverse'
-                          )}
-                        >
-                          <Avatar className="w-8 h-8">
-                            <AvatarImage src={sender?.avatar_url || ''} />
-                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                              {sender?.full_name?.charAt(0) || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className={cn('flex items-start gap-1', isOwn && 'flex-row-reverse')}>
-                            <div
-                              className={cn(
-                                'max-w-[70%] rounded-2xl px-4 py-2',
-                                isOwn
-                                  ? 'bg-primary text-primary-foreground rounded-br-md'
-                                  : 'bg-secondary rounded-bl-md'
-                              )}
-                            >
-                              {!isOwn && (
-                                <p className="text-xs font-medium mb-1 opacity-70">
-                                  {sender?.full_name || 'Unknown'}
-                                </p>
-                              )}
-                              
-                              {/* Voice message */}
-                              {message.file_type === 'audio' && message.file_url && (
-                                <div className="flex items-center gap-2 mb-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className={cn(
-                                      "h-8 w-8",
-                                      isOwn ? "text-primary-foreground hover:bg-primary-foreground/20" : ""
-                                    )}
-                                    onClick={() => playAudio(message.file_url!, message.id)}
-                                  >
-                                    {playingAudioId === message.id ? (
-                                      <Pause className="w-4 h-4" />
-                                    ) : (
-                                      <Play className="w-4 h-4" />
-                                    )}
-                                  </Button>
-                                  <div className="flex-1 h-1 bg-current/20 rounded-full">
-                                    <div className={cn(
-                                      "h-full rounded-full",
-                                      playingAudioId === message.id ? "w-1/2 animate-pulse" : "w-0",
-                                      isOwn ? "bg-primary-foreground" : "bg-primary"
-                                    )} />
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Image attachment */}
-                              {message.file_type === 'image' && message.file_url && (
-                                <div className="mb-2">
-                                  <img 
-                                    src={message.file_url} 
-                                    alt="Attachment" 
-                                    className="max-w-full rounded-lg max-h-48 object-cover"
-                                  />
-                                </div>
-                              )}
-
-                              {/* File attachment */}
-                              {message.file_type === 'file' && message.file_url && (
-                                <a 
-                                  href={message.file_url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className={cn(
-                                    "flex items-center gap-2 mb-1 underline",
-                                    isOwn ? "text-primary-foreground" : "text-primary"
-                                  )}
-                                >
-                                  <Paperclip className="w-4 h-4" />
-                                  View attachment
-                                </a>
-                              )}
-
-                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                              <p
-                                className={cn(
-                                  'text-[10px] mt-1',
-                                  isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground'
-                                )}
-                              >
-                                {format(new Date(message.created_at), 'h:mm a')}
-                              </p>
-                            </div>
-                            
-                            {/* Delete button - Admin only */}
-                            {role === 'admin' && (
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Message</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to delete this message? This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => handleDeleteMessage(message.id)}
-                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    >
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <div ref={messagesEndRef} />
-                  </div>
-                )}
-              </ScrollArea>
-            </CardContent>
-
-            {/* Message Input */}
-            <div className="p-4 border-t border-border">
-              <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  accept="image/*,.pdf,.doc,.docx,.txt"
-                />
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Attach file"
-                >
-                  <Paperclip className="w-4 h-4" />
-                </Button>
-                <Input
-                  placeholder="Type a message..."
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  className="flex-1"
-                />
-                
-                {/* Voice Recording */}
-                {isUploadingVoice ? (
-                  <Button variant="ghost" size="icon" disabled>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  </Button>
-                ) : (
-                  <VoiceRecorder 
-                    onRecordingComplete={handleVoiceRecordingComplete}
-                    disabled={!selectedRoom}
-                  />
-                )}
-                
-                <Button type="submit" size="icon" disabled={!messageInput.trim()}>
-                  <Send className="w-4 h-4" />
-                </Button>
-              </form>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <MessageCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-medium mb-2">Select a conversation</h3>
-              <p className="text-muted-foreground">
-                Choose a chat room from the sidebar to start messaging
-              </p>
-            </div>
-          </div>
-        )}
-      </Card>
+      <ChatArea
+        selectedRoom={selectedRoom}
+        selectedRoomData={selectedRoomData}
+        messages={messages}
+        messagesLoading={messagesLoading}
+        messageInput={messageInput}
+        setMessageInput={setMessageInput}
+        handleSendMessage={handleSendMessage}
+        handleFileUpload={handleFileUpload}
+        handleVoiceRecordingComplete={handleVoiceRecordingComplete}
+        isUploadingVoice={isUploadingVoice}
+        playingAudioId={playingAudioId}
+        onPlayAudio={playAudio}
+        onDeleteMessage={handleDeleteMessage}
+        getSenderProfile={getSenderProfile}
+        currentUserId={user?.id}
+        isAdmin={role === 'admin'}
+      />
     </div>
   );
 };
