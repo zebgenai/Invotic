@@ -39,6 +39,10 @@ export const useCreateChannel = () => {
       creator_name: string;
       description?: string;
       workspace_id?: string;
+      youtube_channel_id?: string;
+      subscriber_count?: number;
+      video_count?: number;
+      view_count?: number;
     }) => {
       const { data, error } = await supabase
         .from('youtube_channels')

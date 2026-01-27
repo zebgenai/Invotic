@@ -52,8 +52,10 @@ export interface YouTubeChannel {
   channel_link: string;
   creator_name: string;
   description: string | null;
-  subscriber_count: number;
-  video_count: number;
+  subscriber_count: number | null;
+  video_count: number | null;
+  view_count: number | null;
+  youtube_channel_id: string | null;
   created_at: string;
   updated_at: string;
 }

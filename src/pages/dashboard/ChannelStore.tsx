@@ -14,9 +14,10 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Youtube, Plus, ExternalLink, Trash2, Users, Video, Search, Pencil } from 'lucide-react';
+import { Youtube, Plus, ExternalLink, Trash2, Users, Video, Search, Pencil, Eye, Loader2, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { YouTubeChannel } from '@/types/database';
+import { supabase } from '@/integrations/supabase/client';
 
 const ChannelStore: React.FC = () => {
   const { user, role } = useAuth();
@@ -29,6 +30,8 @@ const ChannelStore: React.FC = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingChannel, setEditingChannel] = useState<YouTubeChannel | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isFetchingData, setIsFetchingData] = useState(false);
+  const [refreshingChannelId, setRefreshingChannelId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     channel_name: '',
     channel_link: '',
@@ -42,6 +45,25 @@ const ChannelStore: React.FC = () => {
     description: '',
   });
 
+  const fetchYouTubeData = async (channelLink: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('youtube-channel-data', {
+        body: { channel_link: channelLink },
+      });
+
+      if (error) throw error;
+      
+      if (data.success) {
+        return data.data;
+      } else {
+        throw new Error(data.error || 'Failed to fetch channel data');
+      }
+    } catch (error) {
+      console.error('Error fetching YouTube data:', error);
+      return null;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -54,12 +76,39 @@ const ChannelStore: React.FC = () => {
       return;
     }
 
+    setIsFetchingData(true);
+    
     try {
-      await createChannel.mutateAsync(formData);
+      // Fetch YouTube channel data
+      const youtubeData = await fetchYouTubeData(formData.channel_link);
+      
+      const channelPayload: any = {
+        channel_name: youtubeData?.channel_name || formData.channel_name,
+        channel_link: formData.channel_link,
+        creator_name: formData.creator_name,
+        description: youtubeData?.description || formData.description,
+      };
+
+      // Add YouTube data if available
+      if (youtubeData) {
+        channelPayload.youtube_channel_id = youtubeData.youtube_channel_id;
+        channelPayload.subscriber_count = youtubeData.subscriber_count;
+        channelPayload.video_count = youtubeData.video_count;
+        channelPayload.view_count = youtubeData.view_count;
+        
+        toast({
+          title: 'Channel data fetched!',
+          description: `Found ${youtubeData.subscriber_count.toLocaleString()} subscribers and ${youtubeData.video_count} videos.`,
+        });
+      }
+
+      await createChannel.mutateAsync(channelPayload);
+      
       toast({
         title: 'Channel added!',
         description: 'Your channel has been added to the store.',
       });
+      
       setFormData({
         channel_name: '',
         channel_link: '',
@@ -73,6 +122,45 @@ const ChannelStore: React.FC = () => {
         description: 'Failed to add channel. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setIsFetchingData(false);
+    }
+  };
+
+  const handleRefreshChannelData = async (channel: YouTubeChannel) => {
+    setRefreshingChannelId(channel.id);
+    
+    try {
+      const youtubeData = await fetchYouTubeData(channel.channel_link);
+      
+      if (youtubeData) {
+        await updateChannel.mutateAsync({
+          id: channel.id,
+          youtube_channel_id: youtubeData.youtube_channel_id,
+          subscriber_count: youtubeData.subscriber_count,
+          video_count: youtubeData.video_count,
+          view_count: youtubeData.view_count,
+        });
+        
+        toast({
+          title: 'Channel data refreshed!',
+          description: `Updated: ${youtubeData.subscriber_count.toLocaleString()} subscribers, ${youtubeData.view_count.toLocaleString()} views.`,
+        });
+      } else {
+        toast({
+          title: 'Could not refresh',
+          description: 'Unable to fetch latest channel data.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to refresh channel data.',
+        variant: 'destructive',
+      });
+    } finally {
+      setRefreshingChannelId(null);
     }
   };
 
@@ -151,6 +239,13 @@ const ChannelStore: React.FC = () => {
     return channel.user_id === user?.id || role === 'admin' || role === 'manager';
   };
 
+  const formatNumber = (num: number | null | undefined) => {
+    if (num === null || num === undefined) return '0';
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toLocaleString();
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -199,6 +294,9 @@ const ChannelStore: React.FC = () => {
                   value={formData.channel_link}
                   onChange={(e) => setFormData({ ...formData, channel_link: e.target.value })}
                 />
+                <p className="text-xs text-muted-foreground">
+                  We'll automatically fetch subscriber count, views, and video count from YouTube.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
@@ -210,8 +308,17 @@ const ChannelStore: React.FC = () => {
                   rows={3}
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={createChannel.isPending}>
-                {createChannel.isPending ? 'Adding...' : 'Add Channel'}
+              <Button type="submit" className="w-full" disabled={createChannel.isPending || isFetchingData}>
+                {isFetchingData ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Fetching YouTube Data...
+                  </>
+                ) : createChannel.isPending ? (
+                  'Adding...'
+                ) : (
+                  'Add Channel'
+                )}
               </Button>
             </form>
           </DialogContent>
@@ -269,6 +376,17 @@ const ChannelStore: React.FC = () => {
                       <p className="text-sm text-muted-foreground">by {channel.creator_name}</p>
                     </div>
                   </div>
+                  {canEditChannel(channel) && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleRefreshChannelData(channel)}
+                      disabled={refreshingChannelId === channel.id}
+                    >
+                      <RefreshCw className={`w-4 h-4 ${refreshingChannelId === channel.id ? 'animate-spin' : ''}`} />
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -278,13 +396,17 @@ const ChannelStore: React.FC = () => {
                   </p>
                 )}
                 <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1" title="Subscribers">
                     <Users className="w-4 h-4" />
-                    <span>{channel.subscriber_count.toLocaleString()}</span>
+                    <span>{formatNumber(channel.subscriber_count)}</span>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1" title="Videos">
                     <Video className="w-4 h-4" />
-                    <span>{channel.video_count}</span>
+                    <span>{formatNumber(channel.video_count)}</span>
+                  </div>
+                  <div className="flex items-center gap-1" title="Total Views">
+                    <Eye className="w-4 h-4" />
+                    <span>{formatNumber(channel.view_count)}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
