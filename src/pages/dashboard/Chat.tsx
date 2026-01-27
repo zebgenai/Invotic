@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom } from '@/hooks/useChat';
+import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom, useDeleteMessage } from '@/hooks/useChat';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,7 +34,19 @@ import {
   Play,
   Pause,
   Loader2,
+  Trash2,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import VoiceRecorder from '@/components/chat/VoiceRecorder';
@@ -48,6 +60,7 @@ const Chat: React.FC = () => {
   const sendMessage = useSendMessage();
   const createRoom = useCreateChatRoom();
   const updateRoom = useUpdateChatRoom();
+  const deleteMessage = useDeleteMessage();
   const { toast } = useToast();
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -262,6 +275,23 @@ const Chat: React.FC = () => {
     return profiles?.find((p) => p.user_id === senderId);
   };
 
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!selectedRoom) return;
+    try {
+      await deleteMessage.mutateAsync({ messageId, roomId: selectedRoom });
+      toast({
+        title: 'Message deleted',
+        description: 'The message has been removed.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete message.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const selectedRoomData = rooms?.find((r) => r.id === selectedRoom);
 
   const getRoomIcon = (room: typeof rooms extends (infer T)[] | undefined ? T : never) => {
@@ -463,7 +493,7 @@ const Chat: React.FC = () => {
                         <div
                           key={message.id}
                           className={cn(
-                            'flex gap-3',
+                            'flex gap-3 group',
                             isOwn && 'flex-row-reverse'
                           )}
                         >
@@ -473,84 +503,118 @@ const Chat: React.FC = () => {
                               {sender?.full_name?.charAt(0) || 'U'}
                             </AvatarFallback>
                           </Avatar>
-                          <div
-                            className={cn(
-                              'max-w-[70%] rounded-2xl px-4 py-2',
-                              isOwn
-                                ? 'bg-primary text-primary-foreground rounded-br-md'
-                                : 'bg-secondary rounded-bl-md'
-                            )}
-                          >
-                            {!isOwn && (
-                              <p className="text-xs font-medium mb-1 opacity-70">
-                                {sender?.full_name || 'Unknown'}
-                              </p>
-                            )}
-                            
-                            {/* Voice message */}
-                            {message.file_type === 'audio' && message.file_url && (
-                              <div className="flex items-center gap-2 mb-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className={cn(
-                                    "h-8 w-8",
-                                    isOwn ? "text-primary-foreground hover:bg-primary-foreground/20" : ""
-                                  )}
-                                  onClick={() => playAudio(message.file_url!, message.id)}
-                                >
-                                  {playingAudioId === message.id ? (
-                                    <Pause className="w-4 h-4" />
-                                  ) : (
-                                    <Play className="w-4 h-4" />
-                                  )}
-                                </Button>
-                                <div className="flex-1 h-1 bg-current/20 rounded-full">
-                                  <div className={cn(
-                                    "h-full rounded-full",
-                                    playingAudioId === message.id ? "w-1/2 animate-pulse" : "w-0",
-                                    isOwn ? "bg-primary-foreground" : "bg-primary"
-                                  )} />
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Image attachment */}
-                            {message.file_type === 'image' && message.file_url && (
-                              <div className="mb-2">
-                                <img 
-                                  src={message.file_url} 
-                                  alt="Attachment" 
-                                  className="max-w-full rounded-lg max-h-48 object-cover"
-                                />
-                              </div>
-                            )}
-
-                            {/* File attachment */}
-                            {message.file_type === 'file' && message.file_url && (
-                              <a 
-                                href={message.file_url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className={cn(
-                                  "flex items-center gap-2 mb-1 underline",
-                                  isOwn ? "text-primary-foreground" : "text-primary"
-                                )}
-                              >
-                                <Paperclip className="w-4 h-4" />
-                                View attachment
-                              </a>
-                            )}
-
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                            <p
+                          <div className={cn('flex items-start gap-1', isOwn && 'flex-row-reverse')}>
+                            <div
                               className={cn(
-                                'text-[10px] mt-1',
-                                isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground'
+                                'max-w-[70%] rounded-2xl px-4 py-2',
+                                isOwn
+                                  ? 'bg-primary text-primary-foreground rounded-br-md'
+                                  : 'bg-secondary rounded-bl-md'
                               )}
                             >
-                              {format(new Date(message.created_at), 'h:mm a')}
-                            </p>
+                              {!isOwn && (
+                                <p className="text-xs font-medium mb-1 opacity-70">
+                                  {sender?.full_name || 'Unknown'}
+                                </p>
+                              )}
+                              
+                              {/* Voice message */}
+                              {message.file_type === 'audio' && message.file_url && (
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn(
+                                      "h-8 w-8",
+                                      isOwn ? "text-primary-foreground hover:bg-primary-foreground/20" : ""
+                                    )}
+                                    onClick={() => playAudio(message.file_url!, message.id)}
+                                  >
+                                    {playingAudioId === message.id ? (
+                                      <Pause className="w-4 h-4" />
+                                    ) : (
+                                      <Play className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                  <div className="flex-1 h-1 bg-current/20 rounded-full">
+                                    <div className={cn(
+                                      "h-full rounded-full",
+                                      playingAudioId === message.id ? "w-1/2 animate-pulse" : "w-0",
+                                      isOwn ? "bg-primary-foreground" : "bg-primary"
+                                    )} />
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Image attachment */}
+                              {message.file_type === 'image' && message.file_url && (
+                                <div className="mb-2">
+                                  <img 
+                                    src={message.file_url} 
+                                    alt="Attachment" 
+                                    className="max-w-full rounded-lg max-h-48 object-cover"
+                                  />
+                                </div>
+                              )}
+
+                              {/* File attachment */}
+                              {message.file_type === 'file' && message.file_url && (
+                                <a 
+                                  href={message.file_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className={cn(
+                                    "flex items-center gap-2 mb-1 underline",
+                                    isOwn ? "text-primary-foreground" : "text-primary"
+                                  )}
+                                >
+                                  <Paperclip className="w-4 h-4" />
+                                  View attachment
+                                </a>
+                              )}
+
+                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                              <p
+                                className={cn(
+                                  'text-[10px] mt-1',
+                                  isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground'
+                                )}
+                              >
+                                {format(new Date(message.created_at), 'h:mm a')}
+                              </p>
+                            </div>
+                            
+                            {/* Delete button - Admin only */}
+                            {role === 'admin' && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Message</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete this message? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDeleteMessage(message.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
                           </div>
                         </div>
                       );

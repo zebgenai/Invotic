@@ -235,3 +235,22 @@ export const useAddReaction = () => {
     },
   });
 };
+
+export const useDeleteMessage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ messageId, roomId }: { messageId: string; roomId: string }) => {
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('id', messageId);
+
+      if (error) throw error;
+      return { roomId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['messages', data.roomId] });
+    },
+  });
+};
