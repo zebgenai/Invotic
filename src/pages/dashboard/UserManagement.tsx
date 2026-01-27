@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useProfiles, useUpdateKycStatus, useUpdateUserRole, useUserRoles, useDeleteKyc } from '@/hooks/useProfiles';
+import { useProfiles, useUpdateKycStatus, useUpdateUserRole, useUserRoles, useDeleteKyc, useDeleteUserProfile } from '@/hooks/useProfiles';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,7 +39,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Shield, Users, CheckCircle, XCircle, Clock, Eye, Download, FileText, Image as ImageIcon, Trash2, Mail, Phone } from 'lucide-react';
+import { Search, Shield, Users, CheckCircle, XCircle, Clock, Eye, Download, FileText, Image as ImageIcon, Trash2, Mail, Phone, UserX } from 'lucide-react';
 import { format } from 'date-fns';
 import { AppRole, KycStatus } from '@/types/database';
 
@@ -49,6 +49,7 @@ const UserManagement: React.FC = () => {
   const updateKyc = useUpdateKycStatus();
   const updateRole = useUpdateUserRole();
   const deleteKyc = useDeleteKyc();
+  const deleteProfile = useDeleteUserProfile();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -150,6 +151,32 @@ const UserManagement: React.FC = () => {
       toast({
         title: 'Error',
         description: 'Failed to delete KYC. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteProfile = async (userId: string, email: string) => {
+    // Prevent deletion of primary owner
+    if (email === 'atifcyber7@gmail.com') {
+      toast({
+        title: 'Cannot delete',
+        description: 'The primary owner account cannot be deleted.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await deleteProfile.mutateAsync({ userId });
+      toast({
+        title: 'Profile deleted',
+        description: 'The user profile has been permanently deleted.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error?.message || 'Failed to delete profile. Please try again.',
         variant: 'destructive',
       });
     }
@@ -495,6 +522,39 @@ const UserManagement: React.FC = () => {
                                     onClick={() => handleDeleteKyc(profile.user_id, profile.kyc_document_url)}
                                   >
                                     Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                          
+                          {/* Delete Profile Button - Admin only, not for primary owner */}
+                          {profile.email !== 'atifcyber7@gmail.com' && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                                >
+                                  <UserX className="w-3 h-3 mr-1" />
+                                  Delete User
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete User Profile</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to permanently delete {profile.full_name}'s profile? This action cannot be undone and will remove all their data including KYC documents, roles, and associated records.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    onClick={() => handleDeleteProfile(profile.user_id, profile.email)}
+                                  >
+                                    Delete Permanently
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>

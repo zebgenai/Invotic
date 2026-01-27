@@ -21,6 +21,7 @@ import Forum from "./pages/dashboard/Forum";
 import Resources from "./pages/dashboard/Resources";
 import Analytics from "./pages/dashboard/Analytics";
 import KYCSubmission from "./pages/dashboard/KYCSubmission";
+import TeamManagement from "./pages/dashboard/TeamManagement";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ const App = () => (
                 <Route path="resources" element={<Resources />} />
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="stats" element={<Analytics />} />
+                <Route path="teams" element={<TeamManagement />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Route>
               <Route path="*" element={<NotFound />} />
