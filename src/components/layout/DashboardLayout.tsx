@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from './Sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -8,8 +8,9 @@ import { Loader2, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const DashboardLayout: React.FC = () => {
-  const { user, loading, profile } = useAuth();
+  const { user, loading, profile, role } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -24,6 +25,17 @@ const DashboardLayout: React.FC = () => {
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Check if user needs KYC approval (only for regular users, not admins/managers)
+  const isKycApproved = profile?.kyc_status === 'approved';
+  const isAdminOrManager = role === 'admin' || role === 'manager';
+  const allowedPathsForPendingKyc = ['/dashboard/kyc-submit', '/dashboard/settings'];
+  const currentPath = location.pathname;
+  
+  // Redirect non-approved users to KYC page if they try to access other sections
+  if (!isAdminOrManager && !isKycApproved && !allowedPathsForPendingKyc.includes(currentPath)) {
+    return <Navigate to="/dashboard/kyc-submit" replace />;
   }
 
   return (
