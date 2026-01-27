@@ -212,6 +212,9 @@ const Index = () => {
       {/* Developer Card Section */}
       <section className="relative z-10 px-6 pb-20">
         <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-display font-bold text-center mb-8 animate-fade-in">
+            <span className="gradient-text">Developer</span>
+          </h2>
           <div className="glass-card p-8 md:p-12 relative overflow-hidden animate-fade-in group">
             {/* Animated glow effects */}
             <div className="absolute -top-20 -right-20 w-40 h-40 bg-info/30 rounded-full blur-[80px] group-hover:bg-info/50 transition-all duration-700" />
