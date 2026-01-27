@@ -57,9 +57,16 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { icon: Youtube, label: 'Channels', path: '/dashboard/channels' },
   ];
 
+  // Items shown to users BEFORE KYC approval
+  const kycPendingItems = [
+    { icon: FileCheck, label: 'KYC Verification', path: '/dashboard/kyc-submit' },
+    { icon: Settings, label: 'Settings', path: '/dashboard/settings' },
+  ];
+
+  // Items shown to users AFTER KYC approval
   const userItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: FileCheck, label: 'KYC Verification', path: '/dashboard/kyc-submit' },
+    { icon: FileCheck, label: 'KYC Status', path: '/dashboard/kyc-submit' },
     { icon: Youtube, label: 'My Channel', path: '/dashboard/channel' },
     { icon: CheckSquare, label: 'Tasks', path: '/dashboard/tasks' },
     { icon: MessageCircle, label: 'Chat', path: '/dashboard/chat' },
@@ -73,15 +80,22 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { icon: Settings, label: 'Settings', path: '/dashboard/settings' },
   ];
 
+  const isKycApproved = profile?.kyc_status === 'approved';
+  const isAdminOrManager = role === 'admin' || role === 'manager';
+
   const getNavItems = () => {
-    switch (role) {
-      case 'admin':
-        return [...adminItems, ...commonItems];
-      case 'manager':
-        return [...managerItems, ...commonItems];
-      default:
-        return [...userItems, ...commonItems];
+    // Admins and managers always have full access
+    if (role === 'admin') {
+      return [...adminItems, ...commonItems];
     }
+    if (role === 'manager') {
+      return [...managerItems, ...commonItems];
+    }
+    // Regular users: check KYC status
+    if (!isKycApproved) {
+      return kycPendingItems;
+    }
+    return [...userItems, ...commonItems];
   };
 
   const navItems = getNavItems();
