@@ -12,6 +12,7 @@ const DashboardLayout: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const location = useLocation();
 
+  // Show loading state while auth is being determined
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -23,12 +24,26 @@ const DashboardLayout: React.FC = () => {
     );
   }
 
+  // Redirect to auth if not logged in
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
+  // Wait for profile to load before making KYC decisions
+  // This prevents flash redirects and 404 errors on refresh
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Check if user needs KYC approval (only for regular users, not admins/managers)
-  const isKycApproved = profile?.kyc_status === 'approved';
+  const isKycApproved = profile.kyc_status === 'approved';
   const isAdminOrManager = role === 'admin' || role === 'manager';
   const allowedPathsForPendingKyc = ['/dashboard/kyc-submit', '/dashboard/settings'];
   const currentPath = location.pathname;
