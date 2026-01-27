@@ -676,6 +676,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_primary_owner: { Args: { check_user_id: string }; Returns: boolean }
       is_room_creator: {
         Args: { _room_id: string; _user_id: string }
         Returns: boolean
