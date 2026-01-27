@@ -12,7 +12,9 @@ import {
   BarChart3,
   Trophy,
   Shield,
-  Zap
+  Zap,
+  Mail,
+  Phone
 } from "lucide-react";
 import { useEffect } from "react";
 
@@ -254,17 +256,38 @@ const Index = () => {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-border px-6 py-8">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary" />
+      <footer className="relative z-10 border-t border-border px-6 py-12">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-primary" />
+              </div>
+              <span className="font-display font-bold">Partnerunityx</span>
             </div>
-            <span className="font-display font-bold">Partnerunityx</span>
+            
+            {/* Contact Support */}
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              <div className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+                <Mail className="w-4 h-4 text-primary" />
+                <a href="mailto:help@partnerunityx.com" className="text-sm">
+                  help@partnerunityx.com
+                </a>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+                <Phone className="w-4 h-4 text-primary" />
+                <a href="tel:+923189177512" className="text-sm">
+                  +92 318 9177512
+                </a>
+              </div>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            © 2026 Partnerunityx. All rights reserved.
-          </p>
+          
+          <div className="border-t border-border pt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              © 2026 Partnerunityx. All rights reserved.
+            </p>
+          </div>
         </div>
       </footer>
     </div>
