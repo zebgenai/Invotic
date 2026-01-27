@@ -102,7 +102,7 @@ const DashboardHome: React.FC = () => {
           <StatCard
             title="Your Points"
             value="1,250"
-            change="Level 3 Creator"
+            change="Level 3 Partner"
             changeType="positive"
             icon={<Star className="w-6 h-6" />}
           />

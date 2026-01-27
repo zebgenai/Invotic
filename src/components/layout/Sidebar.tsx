@@ -128,11 +128,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
       <div className="p-4 border-b border-sidebar-border">
         <div className={cn('flex items-center', collapsed ? 'justify-center' : 'gap-3')}>
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <span className="text-primary font-bold text-lg">C</span>
+            <span className="text-primary font-bold text-lg">P</span>
           </div>
           {!collapsed && (
             <div>
-              <h1 className="font-display font-bold text-foreground">Creator Portal</h1>
+              <h1 className="font-display font-bold text-foreground">Partnerunityx</h1>
               <p className="text-xs text-muted-foreground capitalize">{role} Dashboard</p>
             </div>
           )}

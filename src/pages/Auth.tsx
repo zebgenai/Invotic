@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Loader2, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Sparkles, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
 
 const signUpSchema = z.object({
@@ -72,7 +72,7 @@ const AuthPage: React.FC = () => {
         } else {
           toast({
             title: 'Account created!',
-            description: 'Welcome to the Creator Portal. Your KYC is pending approval.',
+            description: 'Welcome to Partnerunityx. Your KYC is pending approval.',
           });
           navigate('/dashboard');
         }
@@ -125,15 +125,26 @@ const AuthPage: React.FC = () => {
       </div>
 
       <div className="relative z-10 w-full max-w-md px-4">
+        {/* Back Button */}
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Home</span>
+        </Link>
+
         <div className="glass-card p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-              <Sparkles className="w-8 h-8 text-primary" />
-            </div>
-            <h1 className="text-2xl font-display font-bold gradient-text">
-              Creator Portal
-            </h1>
+            <Link to="/" className="inline-block">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4 hover:bg-primary/20 transition-colors">
+                <Sparkles className="w-8 h-8 text-primary" />
+              </div>
+              <h1 className="text-2xl font-display font-bold gradient-text hover:opacity-80 transition-opacity">
+                Partnerunityx
+              </h1>
+            </Link>
             <p className="text-muted-foreground mt-2">
               {isSignUp ? 'Create your account' : 'Welcome back'}
             </p>
