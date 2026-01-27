@@ -212,9 +212,6 @@ const Index = () => {
       {/* Developer Card Section */}
       <section className="relative z-10 px-6 pb-20">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl md:text-3xl font-display font-bold text-center mb-8 animate-fade-in">
-            <span className="gradient-text">Developer</span>
-          </h2>
           <div className="glass-card p-8 md:p-12 relative overflow-hidden animate-fade-in group">
             {/* Animated glow effects */}
             <div className="absolute -top-20 -right-20 w-40 h-40 bg-info/30 rounded-full blur-[80px] group-hover:bg-info/50 transition-all duration-700" />
@@ -243,8 +240,9 @@ const Index = () => {
               
               {/* Content */}
               <div className="text-center md:text-left flex-1">
-                <div className="flex items-center gap-2 justify-center md:justify-start mb-2">
+                <div className="flex items-center gap-3 justify-center md:justify-start mb-2 flex-wrap">
                   <h3 className="text-2xl md:text-3xl font-display font-bold">Atif Zeb</h3>
+                  <span className="px-3 py-1 rounded-full bg-info/20 border border-info/30 text-info text-sm font-medium">Developer</span>
                   <ShieldCheck className="w-6 h-6 text-info" />
                 </div>
                 <p className="text-info font-medium mb-4">Cybersecurity Analyst & Full-Stack Developer</p>
