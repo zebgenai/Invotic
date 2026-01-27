@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/Auth";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import DashboardHome from "./pages/dashboard/DashboardHome";
@@ -56,7 +55,7 @@ const App = () => (
                 <Route path="teams" element={<TeamManagement />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Route>
-              <Route path="*" element={<NotFound />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
