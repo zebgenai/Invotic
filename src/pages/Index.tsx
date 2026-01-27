@@ -89,7 +89,7 @@ const Index = () => {
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-primary" />
           </div>
-          <span className="font-display font-bold text-xl">CreatorHub</span>
+          <span className="font-display font-bold text-xl">Partnerunityx</span>
         </div>
         <div className="flex items-center gap-4">
           <Button variant="ghost" onClick={() => navigate('/auth')}>
@@ -242,7 +242,7 @@ const Index = () => {
                 Ready to Get Started?
               </h2>
               <p className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
-                Join thousands of creator teams already using CreatorHub to manage their communities.
+                Join thousands of creator teams already using Partnerunityx to manage their communities.
               </p>
               <Button size="lg" onClick={() => navigate('/auth')} className="text-lg px-8 h-14">
                 Create Free Account
@@ -260,10 +260,10 @@ const Index = () => {
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-primary" />
             </div>
-            <span className="font-display font-bold">CreatorHub</span>
+            <span className="font-display font-bold">Partnerunityx</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © 2026 CreatorHub. All rights reserved.
+            © 2026 Partnerunityx. All rights reserved.
           </p>
         </div>
       </footer>
