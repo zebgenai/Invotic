@@ -30,7 +30,7 @@ function extractChannelId(url: string): { type: 'channel' | 'handle' | 'user' | 
 
 // Fetch channel data from YouTube Data API
 async function fetchChannelData(apiKey: string, channelId: string): Promise<any> {
-  const url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${apiKey}`;
+  const url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&id=${channelId}&key=${apiKey}`;
   
   const response = await fetch(url);
   const data = await response.json();
@@ -41,6 +41,60 @@ async function fetchChannelData(apiKey: string, channelId: string): Promise<any>
   }
   
   return data;
+}
+
+// Fetch latest videos from channel
+async function fetchLatestVideos(apiKey: string, channelId: string, maxResults: number = 5): Promise<any[]> {
+  // First get the uploads playlist ID
+  const channelUrl = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${apiKey}`;
+  const channelResponse = await fetch(channelUrl);
+  const channelData = await channelResponse.json();
+  
+  if (!channelResponse.ok || !channelData.items?.length) {
+    console.error('Failed to get uploads playlist:', channelData);
+    return [];
+  }
+  
+  const uploadsPlaylistId = channelData.items[0].contentDetails?.relatedPlaylists?.uploads;
+  if (!uploadsPlaylistId) {
+    console.log('No uploads playlist found');
+    return [];
+  }
+  
+  // Fetch videos from uploads playlist
+  const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${uploadsPlaylistId}&maxResults=${maxResults}&key=${apiKey}`;
+  const playlistResponse = await fetch(playlistUrl);
+  const playlistData = await playlistResponse.json();
+  
+  if (!playlistResponse.ok) {
+    console.error('Failed to fetch playlist items:', playlistData);
+    return [];
+  }
+  
+  const videoIds = playlistData.items?.map((item: any) => item.contentDetails.videoId).join(',');
+  if (!videoIds) return [];
+  
+  // Get video statistics
+  const videosUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}&key=${apiKey}`;
+  const videosResponse = await fetch(videosUrl);
+  const videosData = await videosResponse.json();
+  
+  if (!videosResponse.ok) {
+    console.error('Failed to fetch video details:', videosData);
+    return [];
+  }
+  
+  return videosData.items?.map((video: any) => ({
+    id: video.id,
+    title: video.snippet.title,
+    description: video.snippet.description?.substring(0, 200),
+    thumbnail: video.snippet.thumbnails?.high?.url || video.snippet.thumbnails?.default?.url,
+    published_at: video.snippet.publishedAt,
+    duration: video.contentDetails.duration,
+    view_count: parseInt(video.statistics.viewCount) || 0,
+    like_count: parseInt(video.statistics.likeCount) || 0,
+    comment_count: parseInt(video.statistics.commentCount) || 0,
+  })) || [];
 }
 
 // Resolve handle/username to channel ID
@@ -155,8 +209,11 @@ Deno.serve(async (req) => {
 
     console.log('Fetching data for channel ID:', channelId);
 
-    // Fetch channel statistics
-    const channelData = await fetchChannelData(apiKey, channelId);
+    // Fetch channel statistics and latest videos in parallel
+    const [channelData, latestVideos] = await Promise.all([
+      fetchChannelData(apiKey, channelId),
+      fetchLatestVideos(apiKey, channelId, 5)
+    ]);
 
     if (!channelData.items || channelData.items.length === 0) {
       return new Response(
@@ -181,10 +238,12 @@ Deno.serve(async (req) => {
         country: snippet.country || null,
         custom_url: snippet.customUrl || null,
         published_at: snippet.publishedAt,
-      }
+        latest_videos: latestVideos,
+      },
+      fetched_at: new Date().toISOString(),
     };
 
-    console.log('Successfully fetched channel data:', result.data.channel_name, 'Subscribers:', result.data.subscriber_count);
+    console.log('Successfully fetched channel data:', result.data.channel_name, 'Subscribers:', result.data.subscriber_count, 'Videos:', latestVideos.length);
 
     return new Response(
       JSON.stringify(result),
