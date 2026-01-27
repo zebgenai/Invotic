@@ -3,9 +3,9 @@ import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from './Sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { NotificationsDropdown } from '@/components/layout/NotificationsDropdown';
 import { cn } from '@/lib/utils';
-import { Loader2, Bell } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 const DashboardLayout: React.FC = () => {
   const { user, loading, profile, role } = useAuth();
@@ -73,12 +73,7 @@ const DashboardLayout: React.FC = () => {
               <h2 className="font-semibold">{profile?.full_name || 'User'}</h2>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
-                  3
-                </span>
-              </Button>
+              <NotificationsDropdown />
               <ThemeToggle />
             </div>
           </div>
