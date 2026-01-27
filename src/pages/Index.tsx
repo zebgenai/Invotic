@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import sherazPhoto from "@/assets/sheraz-khan.jpeg";
+import atifPhoto from "@/assets/atif-zeb.jpeg";
 import { Button } from "@/components/ui/button";
 import { 
   Sparkles, 
@@ -14,7 +15,11 @@ import {
   Shield,
   Zap,
   Mail,
-  Phone
+  Phone,
+  MapPin,
+  Linkedin,
+  Code,
+  ShieldCheck
 } from "lucide-react";
 import { useEffect } from "react";
 
@@ -197,6 +202,82 @@ const Index = () => {
                     <Trophy className="w-4 h-4 text-warning" />
                     <span>Since 2020</span>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Developer Card Section */}
+      <section className="relative z-10 px-6 pb-20">
+        <div className="max-w-4xl mx-auto">
+          <div className="glass-card p-8 md:p-12 relative overflow-hidden animate-fade-in group">
+            {/* Animated glow effects */}
+            <div className="absolute -top-20 -right-20 w-40 h-40 bg-info/30 rounded-full blur-[80px] group-hover:bg-info/50 transition-all duration-700" />
+            <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-primary/30 rounded-full blur-[80px] group-hover:bg-primary/50 transition-all duration-700" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-60 h-60 bg-accent/10 rounded-full blur-[100px] animate-pulse" />
+            
+            {/* Gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-info/5 via-transparent to-primary/5" />
+            
+            <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+              {/* Avatar with animated border */}
+              <div className="flex-shrink-0 relative">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-info via-primary to-accent animate-[spin_4s_linear_infinite] blur-sm opacity-60" />
+                <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-info to-primary p-1">
+                  <img 
+                    src={atifPhoto} 
+                    alt="Atif Zeb" 
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                </div>
+                {/* Floating badge */}
+                <div className="absolute -bottom-2 -right-2 bg-info/20 backdrop-blur-sm border border-info/30 rounded-full p-2 animate-bounce">
+                  <Code className="w-5 h-5 text-info" />
+                </div>
+              </div>
+              
+              {/* Content */}
+              <div className="text-center md:text-left flex-1">
+                <div className="flex items-center gap-2 justify-center md:justify-start mb-2">
+                  <h3 className="text-2xl md:text-3xl font-display font-bold">Atif Zeb</h3>
+                  <ShieldCheck className="w-6 h-6 text-info" />
+                </div>
+                <p className="text-info font-medium mb-4">Cybersecurity Analyst & Full-Stack Developer</p>
+                <p className="text-muted-foreground text-lg leading-relaxed mb-6">
+                  Building <span className="text-foreground font-semibold">secure, scalable web applications</span>, managing networks, and developing <span className="text-foreground font-semibold">AI-driven solutions</span> with a focus on modern security practices.
+                </p>
+                
+                {/* Contact info with hover effects */}
+                <div className="flex flex-wrap items-center gap-4 justify-center md:justify-start">
+                  <a 
+                    href="mailto:atifcyber7@gmail.com" 
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-info transition-all duration-300 hover:scale-105"
+                  >
+                    <Mail className="w-4 h-4" />
+                    <span>atifcyber7@gmail.com</span>
+                  </a>
+                  <a 
+                    href="tel:+923099194338" 
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-info transition-all duration-300 hover:scale-105"
+                  >
+                    <Phone className="w-4 h-4" />
+                    <span>+92 309 9194338</span>
+                  </a>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="w-4 h-4" />
+                    <span>Peshawar, Pakistan</span>
+                  </div>
+                  <a 
+                    href="https://linkedin.com/in/atif-zeb-76b866290" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-info transition-all duration-300 hover:scale-105"
+                  >
+                    <Linkedin className="w-4 h-4" />
+                    <span>LinkedIn</span>
+                  </a>
                 </div>
               </div>
             </div>
