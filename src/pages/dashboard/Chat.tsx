@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom } from '@/hooks/useChat';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,9 +30,14 @@ import {
   Smile,
   Paperclip,
   Globe,
+  Mic,
+  Play,
+  Pause,
+  Loader2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import VoiceRecorder from '@/components/chat/VoiceRecorder';
 
 const Chat: React.FC = () => {
   const { user, profile, role } = useAuth();
@@ -49,7 +55,11 @@ const Chat: React.FC = () => {
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomType, setNewRoomType] = useState<'private' | 'group' | 'broadcast'>('group');
   const [isPublicRoom, setIsPublicRoom] = useState(false);
+  const [isUploadingVoice, setIsUploadingVoice] = useState(false);
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -76,6 +86,121 @@ const Chat: React.FC = () => {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleVoiceRecordingComplete = async (audioBlob: Blob) => {
+    if (!selectedRoom || !user) return;
+
+    setIsUploadingVoice(true);
+    try {
+      // Upload audio to storage
+      const fileName = `voice-messages/${user.id}/${Date.now()}.webm`;
+      const { error: uploadError } = await supabase.storage
+        .from('chat-files')
+        .upload(fileName, audioBlob);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('chat-files')
+        .getPublicUrl(fileName);
+
+      // Send message with audio URL
+      await sendMessage.mutateAsync({
+        roomId: selectedRoom,
+        content: '🎤 Voice message',
+        fileUrl: urlData.publicUrl,
+        fileType: 'audio',
+      });
+
+      toast({
+        title: 'Voice message sent!',
+        description: 'Your voice message has been delivered.',
+      });
+    } catch (error) {
+      console.error('Voice upload error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send voice message. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploadingVoice(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedRoom || !user) return;
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Please upload a file smaller than 10MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const fileName = `attachments/${user.id}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from('chat-files')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('chat-files')
+        .getPublicUrl(fileName);
+
+      const fileType = file.type.startsWith('image/') ? 'image' : 'file';
+
+      await sendMessage.mutateAsync({
+        roomId: selectedRoom,
+        content: `📎 ${file.name}`,
+        fileUrl: urlData.publicUrl,
+        fileType,
+      });
+
+      toast({
+        title: 'File sent!',
+        description: 'Your file has been delivered.',
+      });
+    } catch (error) {
+      console.error('File upload error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send file. Please try again.',
+        variant: 'destructive',
+      });
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const playAudio = (audioUrl: string, messageId: string) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+
+    if (playingAudioId === messageId) {
+      setPlayingAudioId(null);
+      return;
+    }
+
+    const audio = new Audio(audioUrl);
+    audioRef.current = audio;
+    audio.play();
+    setPlayingAudioId(messageId);
+
+    audio.onended = () => {
+      setPlayingAudioId(null);
+    };
   };
 
   const handleCreateRoom = async () => {
@@ -361,6 +486,62 @@ const Chat: React.FC = () => {
                                 {sender?.full_name || 'Unknown'}
                               </p>
                             )}
+                            
+                            {/* Voice message */}
+                            {message.file_type === 'audio' && message.file_url && (
+                              <div className="flex items-center gap-2 mb-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    "h-8 w-8",
+                                    isOwn ? "text-primary-foreground hover:bg-primary-foreground/20" : ""
+                                  )}
+                                  onClick={() => playAudio(message.file_url!, message.id)}
+                                >
+                                  {playingAudioId === message.id ? (
+                                    <Pause className="w-4 h-4" />
+                                  ) : (
+                                    <Play className="w-4 h-4" />
+                                  )}
+                                </Button>
+                                <div className="flex-1 h-1 bg-current/20 rounded-full">
+                                  <div className={cn(
+                                    "h-full rounded-full",
+                                    playingAudioId === message.id ? "w-1/2 animate-pulse" : "w-0",
+                                    isOwn ? "bg-primary-foreground" : "bg-primary"
+                                  )} />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Image attachment */}
+                            {message.file_type === 'image' && message.file_url && (
+                              <div className="mb-2">
+                                <img 
+                                  src={message.file_url} 
+                                  alt="Attachment" 
+                                  className="max-w-full rounded-lg max-h-48 object-cover"
+                                />
+                              </div>
+                            )}
+
+                            {/* File attachment */}
+                            {message.file_type === 'file' && message.file_url && (
+                              <a 
+                                href={message.file_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className={cn(
+                                  "flex items-center gap-2 mb-1 underline",
+                                  isOwn ? "text-primary-foreground" : "text-primary"
+                                )}
+                              >
+                                <Paperclip className="w-4 h-4" />
+                                View attachment
+                              </a>
+                            )}
+
                             <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                             <p
                               className={cn(
@@ -383,7 +564,20 @@ const Chat: React.FC = () => {
             {/* Message Input */}
             <div className="p-4 border-t border-border">
               <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                <Button type="button" variant="ghost" size="icon">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  accept="image/*,.pdf,.doc,.docx,.txt"
+                />
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Attach file"
+                >
                   <Paperclip className="w-4 h-4" />
                 </Button>
                 <Input
@@ -392,9 +586,19 @@ const Chat: React.FC = () => {
                   onChange={(e) => setMessageInput(e.target.value)}
                   className="flex-1"
                 />
-                <Button type="button" variant="ghost" size="icon">
-                  <Smile className="w-4 h-4" />
-                </Button>
+                
+                {/* Voice Recording */}
+                {isUploadingVoice ? (
+                  <Button variant="ghost" size="icon" disabled>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  </Button>
+                ) : (
+                  <VoiceRecorder 
+                    onRecordingComplete={handleVoiceRecordingComplete}
+                    disabled={!selectedRoom}
+                  />
+                )}
+                
                 <Button type="submit" size="icon" disabled={!messageInput.trim()}>
                   <Send className="w-4 h-4" />
                 </Button>
