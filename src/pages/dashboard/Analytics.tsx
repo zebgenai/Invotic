@@ -3,6 +3,7 @@ import { useChartData, useDashboardStats, useActivityLogs } from '@/hooks/useAna
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import YouTubeAnalyticsSection from '@/components/dashboard/YouTubeAnalyticsSection';
 import {
   BarChart3,
   TrendingUp,
@@ -107,6 +108,9 @@ const Analytics: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* YouTube Analytics Section */}
+      <YouTubeAnalyticsSection />
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
