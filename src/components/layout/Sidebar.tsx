@@ -19,24 +19,35 @@ import {
   ChevronRight,
   FileCheck,
   UsersRound,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
+const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onMobileClose }) => {
   const { profile, role, signOut } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
+  };
+
+  const handleNavClick = () => {
+    if (isMobile && onMobileClose) {
+      onMobileClose();
+    }
   };
 
   const adminItems = [
@@ -59,13 +70,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { icon: Youtube, label: 'Channels', path: '/dashboard/channels' },
   ];
 
-  // Items shown to users BEFORE KYC approval
   const kycPendingItems = [
     { icon: FileCheck, label: 'KYC Verification', path: '/dashboard/kyc-submit' },
     { icon: Settings, label: 'Settings', path: '/dashboard/settings' },
   ];
 
-  // Items shown to users AFTER KYC approval
   const userItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: FileCheck, label: 'KYC Status', path: '/dashboard/kyc-submit' },
@@ -83,17 +92,14 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   ];
 
   const isKycApproved = profile?.kyc_status === 'approved';
-  const isAdminOrManager = role === 'admin' || role === 'manager';
 
   const getNavItems = () => {
-    // Admins and managers always have full access
     if (role === 'admin') {
       return [...adminItems, ...commonItems];
     }
     if (role === 'manager') {
       return [...managerItems, ...commonItems];
     }
-    // Regular users: check KYC status
     if (!isKycApproved) {
       return kycPendingItems;
     }
@@ -117,24 +123,37 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     }
   };
 
+  // On mobile, show/hide based on mobileOpen prop
+  // On desktop, always visible
+  const isVisible = isMobile ? mobileOpen : true;
+
+  if (!isVisible) return null;
+
   return (
     <aside
       className={cn(
         'fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 z-50',
-        collapsed ? 'w-20' : 'w-64'
+        isMobile ? 'w-72 animate-slide-in-right' : (collapsed ? 'w-20' : 'w-64')
       )}
     >
       {/* Header */}
       <div className="p-4 border-b border-sidebar-border">
-        <div className={cn('flex items-center', collapsed ? 'justify-center' : 'gap-3')}>
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <span className="text-primary font-bold text-lg">P</span>
-          </div>
-          {!collapsed && (
-            <div>
-              <h1 className="font-display font-bold text-foreground">Partnerunityx</h1>
-              <p className="text-xs text-muted-foreground capitalize">{role} Dashboard</p>
+        <div className={cn('flex items-center', (isMobile || !collapsed) ? 'justify-between' : 'justify-center')}>
+          <div className={cn('flex items-center', (collapsed && !isMobile) ? '' : 'gap-3')}>
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <span className="text-primary font-bold text-lg">P</span>
             </div>
+            {(!collapsed || isMobile) && (
+              <div>
+                <h1 className="font-display font-bold text-foreground">Partnerunityx</h1>
+                <p className="text-xs text-muted-foreground capitalize">{role} Dashboard</p>
+              </div>
+            )}
+          </div>
+          {isMobile && onMobileClose && (
+            <Button variant="ghost" size="icon" onClick={onMobileClose}>
+              <X className="w-5 h-5" />
+            </Button>
           )}
         </div>
       </div>
@@ -146,30 +165,31 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             key={item.path}
             to={item.path}
             end={item.path === '/dashboard'}
+            onClick={handleNavClick}
             className={({ isActive }) =>
               cn(
                 'sidebar-item',
                 isActive && 'active',
-                collapsed && 'justify-center px-3'
+                (collapsed && !isMobile) && 'justify-center px-3'
               )
             }
           >
             <item.icon className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span>{item.label}</span>}
+            {(!collapsed || isMobile) && <span>{item.label}</span>}
           </NavLink>
         ))}
       </nav>
 
       {/* User section */}
       <div className="p-3 border-t border-sidebar-border">
-        <div className={cn('flex items-center gap-3', collapsed && 'flex-col')}>
+        <div className={cn('flex items-center gap-3', (collapsed && !isMobile) && 'flex-col')}>
           <Avatar className="w-10 h-10">
             <AvatarImage src={profile?.avatar_url || ''} />
             <AvatarFallback className="bg-primary/10 text-primary">
               {profile?.full_name?.charAt(0) || 'U'}
             </AvatarFallback>
           </Avatar>
-          {!collapsed && (
+          {(!collapsed || isMobile) && (
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate">{profile?.full_name || 'User'}</p>
               <div className="flex items-center gap-2">
@@ -180,22 +200,24 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         </div>
         <Button
           variant="ghost"
-          size={collapsed ? 'icon' : 'default'}
-          className={cn('mt-3', collapsed ? 'w-full justify-center' : 'w-full justify-start')}
+          size={(collapsed && !isMobile) ? 'icon' : 'default'}
+          className={cn('mt-3', (collapsed && !isMobile) ? 'w-full justify-center' : 'w-full justify-start')}
           onClick={handleSignOut}
         >
           <LogOut className="w-4 h-4" />
-          {!collapsed && <span className="ml-2">Sign Out</span>}
+          {(!collapsed || isMobile) && <span className="ml-2">Sign Out</span>}
         </Button>
       </div>
 
-      {/* Collapse toggle */}
-      <button
-        onClick={onToggle}
-        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-secondary border border-border flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
-      >
-        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-      </button>
+      {/* Collapse toggle - desktop only */}
+      {!isMobile && (
+        <button
+          onClick={onToggle}
+          className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-secondary border border-border flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
+        >
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
+      )}
     </aside>
   );
 };

@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import ChatArea from '@/components/chat/ChatArea';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Chat: React.FC = () => {
   const { user, profile, role } = useAuth();
@@ -27,6 +28,7 @@ const Chat: React.FC = () => {
   const [isUploadingVoice, setIsUploadingVoice] = useState(false);
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isMobile = useIsMobile();
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,13 +221,73 @@ const Chat: React.FC = () => {
     is_public: (room as any).is_public || false,
   }));
 
+  const handleRoomSelect = (roomId: string) => {
+    setSelectedRoom(roomId);
+  };
+
+  const handleBackToRooms = () => {
+    setSelectedRoom(null);
+  };
+
+  // Mobile: Show sidebar or chat area based on selection
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-8rem)]">
+        {!selectedRoom ? (
+          <ChatSidebar
+            rooms={transformedRooms}
+            roomsLoading={roomsLoading}
+            selectedRoom={selectedRoom}
+            setSelectedRoom={handleRoomSelect}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            isCreateDialogOpen={isCreateDialogOpen}
+            setIsCreateDialogOpen={setIsCreateDialogOpen}
+            newRoomName={newRoomName}
+            setNewRoomName={setNewRoomName}
+            newRoomType={newRoomType}
+            setNewRoomType={setNewRoomType}
+            isPublicRoom={isPublicRoom}
+            setIsPublicRoom={setIsPublicRoom}
+            handleCreateRoom={handleCreateRoom}
+            createRoomPending={createRoom.isPending}
+            canCreateRoom={role === 'admin' || role === 'manager'}
+            isMobile={true}
+          />
+        ) : (
+          <ChatArea
+            selectedRoom={selectedRoom}
+            selectedRoomData={selectedRoomData}
+            messages={messages}
+            messagesLoading={messagesLoading}
+            messageInput={messageInput}
+            setMessageInput={setMessageInput}
+            handleSendMessage={handleSendMessage}
+            handleFileUpload={handleFileUpload}
+            handleVoiceRecordingComplete={handleVoiceRecordingComplete}
+            isUploadingVoice={isUploadingVoice}
+            playingAudioId={playingAudioId}
+            onPlayAudio={playAudio}
+            onDeleteMessage={handleDeleteMessage}
+            getSenderProfile={getSenderProfile}
+            currentUserId={user?.id}
+            isAdmin={role === 'admin'}
+            isMobile={true}
+            onBack={handleBackToRooms}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Desktop: Side-by-side layout
   return (
     <div className="flex h-[calc(100vh-7rem)] gap-4">
       <ChatSidebar
         rooms={transformedRooms}
         roomsLoading={roomsLoading}
         selectedRoom={selectedRoom}
-        setSelectedRoom={setSelectedRoom}
+        setSelectedRoom={handleRoomSelect}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         isCreateDialogOpen={isCreateDialogOpen}
