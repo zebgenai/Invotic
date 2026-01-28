@@ -50,6 +50,7 @@ interface ChatSidebarProps {
   handleCreateRoom: () => void;
   createRoomPending: boolean;
   canCreateRoom: boolean;
+  isMobile?: boolean;
 }
 
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -70,6 +71,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   handleCreateRoom,
   createRoomPending,
   canCreateRoom,
+  isMobile = false,
 }) => {
   const getRoomIcon = (room: ChatRoom) => {
     if (room?.is_broadcast) return <Megaphone className="w-4 h-4" />;
@@ -82,7 +84,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   );
 
   return (
-    <Card className="w-80 flex flex-col bg-card/40 backdrop-blur-xl border-border/50 overflow-hidden">
+    <Card className={cn(
+      "flex flex-col bg-card/40 backdrop-blur-xl border-border/50 overflow-hidden",
+      isMobile ? "w-full flex-1" : "w-80"
+    )}>
       {/* Header with gradient accent */}
       <CardHeader className="pb-3 relative">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />

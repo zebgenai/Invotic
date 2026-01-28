@@ -5,12 +5,21 @@ import Sidebar from './Sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { NotificationsDropdown } from '@/components/layout/NotificationsDropdown';
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Menu, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const DashboardLayout: React.FC = () => {
   const { user, loading, profile, role } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const isMobile = useIsMobile();
+
+  // Close mobile menu on route change
+  React.useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   // Show loading state while auth is being determined
   if (loading) {
@@ -30,7 +39,6 @@ const DashboardLayout: React.FC = () => {
   }
 
   // Wait for profile to load before making KYC decisions
-  // This prevents flash redirects and 404 errors on refresh
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -42,43 +50,65 @@ const DashboardLayout: React.FC = () => {
     );
   }
 
-  // Check if user needs KYC approval (only for regular users, not admins/managers)
+  // Check if user needs KYC approval
   const isKycApproved = profile.kyc_status === 'approved';
   const isAdminOrManager = role === 'admin' || role === 'manager';
   const allowedPathsForPendingKyc = ['/dashboard/kyc-submit', '/dashboard/settings'];
   const currentPath = location.pathname;
   
-  // Redirect non-approved users to KYC page if they try to access other sections
   if (!isAdminOrManager && !isKycApproved && !allowedPathsForPendingKyc.includes(currentPath)) {
     return <Navigate to="/dashboard/kyc-submit" replace />;
   }
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Mobile overlay */}
+      {isMobile && mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       <Sidebar
-        collapsed={sidebarCollapsed}
+        collapsed={isMobile ? false : sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        mobileOpen={mobileMenuOpen}
+        onMobileClose={() => setMobileMenuOpen(false)}
       />
+      
       <main
         className={cn(
           'min-h-screen transition-all duration-300',
-          sidebarCollapsed ? 'ml-20' : 'ml-64'
+          isMobile ? 'ml-0' : (sidebarCollapsed ? 'ml-20' : 'ml-64')
         )}
       >
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-sm">
-          <div className="flex items-center justify-between px-6 py-3">
-            <div>
-              <p className="text-sm text-muted-foreground">Welcome back,</p>
-              <h2 className="font-semibold">{profile?.full_name || 'User'}</h2>
+        <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-sm">
+          <div className="flex items-center justify-between px-4 md:px-6 py-3">
+            <div className="flex items-center gap-3">
+              {isMobile && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setMobileMenuOpen(true)}
+                  className="md:hidden"
+                >
+                  <Menu className="w-5 h-5" />
+                </Button>
+              )}
+              <div>
+                <p className="text-xs md:text-sm text-muted-foreground">Welcome back,</p>
+                <h2 className="font-semibold text-sm md:text-base">{profile?.full_name || 'User'}</h2>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 md:gap-2">
               <NotificationsDropdown />
               <ThemeToggle />
             </div>
           </div>
         </header>
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           <Outlet />
         </div>
       </main>

@@ -13,6 +13,7 @@ import {
   Loader2,
   Sparkles,
   Smile,
+  ArrowLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ChatMessage from './ChatMessage';
@@ -58,6 +59,8 @@ interface ChatAreaProps {
   getSenderProfile: (senderId: string) => Profile | null | undefined;
   currentUserId: string | undefined;
   isAdmin: boolean;
+  isMobile?: boolean;
+  onBack?: () => void;
 }
 
 const ChatArea: React.FC<ChatAreaProps> = ({
@@ -77,6 +80,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   getSenderProfile,
   currentUserId,
   isAdmin,
+  isMobile = false,
+  onBack,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -124,16 +129,26 @@ const ChatArea: React.FC<ChatAreaProps> = ({
       <CardHeader className="border-b border-border/50 pb-4 relative">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5" />
         <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
+            {isMobile && onBack && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={onBack}
+                className="rounded-xl hover:bg-primary/10 hover:text-primary"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            )}
             <div className={cn(
-              "w-12 h-12 rounded-xl flex items-center justify-center",
+              "w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center",
               "bg-gradient-to-br from-primary/20 to-primary/10 text-primary",
               "shadow-lg shadow-primary/10"
             )}>
               {selectedRoomData && getRoomIcon(selectedRoomData)}
             </div>
             <div>
-              <CardTitle className="text-lg font-display flex items-center gap-2">
+              <CardTitle className="text-base md:text-lg font-display flex items-center gap-2">
                 {selectedRoomData?.name || 'Private Chat'}
                 <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
               </CardTitle>
