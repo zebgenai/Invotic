@@ -29,6 +29,7 @@ export const useCreateTask = () => {
     mutationFn: async (task: {
       title: string;
       description?: string;
+      link?: string;
       assigned_to?: string;
       workspace_id?: string;
       priority?: TaskPriority;
