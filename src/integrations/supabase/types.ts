@@ -344,6 +344,7 @@ export type Database = {
           kyc_status: Database["public"]["Enums"]["kyc_status"]
           kyc_submitted_at: string | null
           kyc_whatsapp: string | null
+          specialty: Database["public"]["Enums"]["user_specialty"] | null
           updated_at: string
           user_id: string
         }
@@ -361,6 +362,7 @@ export type Database = {
           kyc_status?: Database["public"]["Enums"]["kyc_status"]
           kyc_submitted_at?: string | null
           kyc_whatsapp?: string | null
+          specialty?: Database["public"]["Enums"]["user_specialty"] | null
           updated_at?: string
           user_id: string
         }
@@ -378,6 +380,7 @@ export type Database = {
           kyc_status?: Database["public"]["Enums"]["kyc_status"]
           kyc_submitted_at?: string | null
           kyc_whatsapp?: string | null
+          specialty?: Database["public"]["Enums"]["user_specialty"] | null
           updated_at?: string
           user_id?: string
         }
@@ -747,6 +750,13 @@ export type Database = {
       kyc_status: "pending" | "approved" | "rejected"
       task_priority: "low" | "medium" | "high" | "urgent"
       task_status: "todo" | "in_progress" | "completed" | "cancelled"
+      user_specialty:
+        | "script_writer"
+        | "video_editor"
+        | "thumbnail_designer"
+        | "voice_over_artist"
+        | "seo_specialist"
+        | "channel_manager"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -878,6 +888,14 @@ export const Constants = {
       kyc_status: ["pending", "approved", "rejected"],
       task_priority: ["low", "medium", "high", "urgent"],
       task_status: ["todo", "in_progress", "completed", "cancelled"],
+      user_specialty: [
+        "script_writer",
+        "video_editor",
+        "thumbnail_designer",
+        "voice_over_artist",
+        "seo_specialist",
+        "channel_manager",
+      ],
     },
   },
 } as const
