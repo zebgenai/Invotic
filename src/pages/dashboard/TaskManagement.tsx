@@ -31,6 +31,8 @@ import {
   MoreVertical,
   Trash2,
   CheckCircle,
+  Link,
+  ExternalLink,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -54,6 +56,7 @@ const TaskManagement: React.FC = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    link: '',
     assigned_to: '',
     priority: 'medium' as TaskPriority,
     due_date: '',
@@ -75,6 +78,7 @@ const TaskManagement: React.FC = () => {
       await createTask.mutateAsync({
         title: formData.title,
         description: formData.description || undefined,
+        link: formData.link || undefined,
         assigned_to: formData.assigned_to || undefined,
         priority: formData.priority,
         due_date: formData.due_date || undefined,
@@ -86,6 +90,7 @@ const TaskManagement: React.FC = () => {
       setFormData({
         title: '',
         description: '',
+        link: '',
         assigned_to: '',
         priority: 'medium',
         due_date: '',
@@ -214,6 +219,19 @@ const TaskManagement: React.FC = () => {
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="link" className="flex items-center gap-2">
+                    <Link className="w-4 h-4" />
+                    Link (Optional)
+                  </Label>
+                  <Input
+                    id="link"
+                    type="url"
+                    placeholder="https://example.com/resource"
+                    value={formData.link}
+                    onChange={(e) => setFormData({ ...formData, link: e.target.value })}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -356,12 +374,24 @@ const TaskManagement: React.FC = () => {
                           {task.description}
                         </p>
                       )}
-                      <div className="flex items-center gap-3 mt-2">
+                      <div className="flex items-center gap-3 mt-2 flex-wrap">
                         {getPriorityBadge(task.priority)}
                         {task.due_date && (
                           <span className="text-xs text-muted-foreground">
                             Due {format(new Date(task.due_date), 'MMM d, yyyy')}
                           </span>
+                        )}
+                        {task.link && (
+                          <a
+                            href={task.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            Open Link
+                          </a>
                         )}
                       </div>
                     </div>
