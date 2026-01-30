@@ -1,8 +1,20 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
   MessageCircle,
   Send,
@@ -14,10 +26,15 @@ import {
   Sparkles,
   Smile,
   ArrowLeft,
+  Trash2,
+  Calendar,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { isToday, isThisWeek, isThisMonth, parseISO } from 'date-fns';
 import ChatMessage from './ChatMessage';
 import VoiceRecorder from './VoiceRecorder';
+
+type DateFilter = 'all' | 'today' | 'week' | 'month';
 
 interface Profile {
   user_id: string;
@@ -56,6 +73,7 @@ interface ChatAreaProps {
   playingAudioId: string | null;
   onPlayAudio: (audioUrl: string, messageId: string) => void;
   onDeleteMessage: (messageId: string) => void;
+  onDeleteAllMessages?: () => void;
   getSenderProfile: (senderId: string) => Profile | null | undefined;
   currentUserId: string | undefined;
   isAdmin: boolean;
@@ -77,6 +95,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   playingAudioId,
   onPlayAudio,
   onDeleteMessage,
+  onDeleteAllMessages,
   getSenderProfile,
   currentUserId,
   isAdmin,
@@ -85,6 +104,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -93,6 +113,26 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Filter messages by date
+  const filteredMessages = useMemo(() => {
+    if (!messages) return [];
+    if (dateFilter === 'all') return messages;
+
+    return messages.filter((message) => {
+      const messageDate = parseISO(message.created_at);
+      switch (dateFilter) {
+        case 'today':
+          return isToday(messageDate);
+        case 'week':
+          return isThisWeek(messageDate);
+        case 'month':
+          return isThisMonth(messageDate);
+        default:
+          return true;
+      }
+    });
+  }, [messages, dateFilter]);
 
   const getRoomIcon = (room: ChatRoom) => {
     if (room?.is_broadcast) return <Megaphone className="w-5 h-5" />;
@@ -163,10 +203,58 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-1">
+            {/* Delete All Messages - Admin Only */}
+            {isAdmin && onDeleteAllMessages && messages && messages.length > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="rounded-xl hover:bg-destructive/10 hover:text-destructive"
+                    title="Delete all messages"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete All Messages</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete all messages in this chat room? 
+                      This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={onDeleteAllMessages}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete All
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
             <Button variant="ghost" size="icon" className="rounded-xl hover:bg-primary/10 hover:text-primary">
               <Users className="w-4 h-4" />
             </Button>
           </div>
+        </div>
+        
+        {/* Date Filter Tabs */}
+        <div className="relative z-10 mt-4">
+          <Tabs value={dateFilter} onValueChange={(value) => setDateFilter(value as DateFilter)} className="w-full">
+            <TabsList className="w-full justify-start bg-secondary/30 p-1">
+              <TabsTrigger value="all" className="text-xs flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                All
+              </TabsTrigger>
+              <TabsTrigger value="today" className="text-xs">Today</TabsTrigger>
+              <TabsTrigger value="week" className="text-xs">This Week</TabsTrigger>
+              <TabsTrigger value="month" className="text-xs">This Month</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
       </CardHeader>
 
@@ -179,17 +267,21 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                 <div className="w-10 h-10 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                 <p className="text-sm text-muted-foreground">Loading messages...</p>
               </div>
-            ) : messages?.length === 0 ? (
+            ) : filteredMessages.length === 0 ? (
               <div className="text-center py-16 animate-fade-in">
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center mx-auto mb-4">
                   <MessageCircle className="w-10 h-10 text-primary/60" />
                 </div>
-                <h4 className="text-lg font-semibold mb-1">No messages yet</h4>
-                <p className="text-sm text-muted-foreground">Start the conversation!</p>
+                <h4 className="text-lg font-semibold mb-1">
+                  {messages?.length === 0 ? 'No messages yet' : 'No messages in this period'}
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  {messages?.length === 0 ? 'Start the conversation!' : 'Try selecting a different date filter'}
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
-                {messages?.map((message) => (
+                {filteredMessages.map((message) => (
                   <ChatMessage
                     key={message.id}
                     message={message}

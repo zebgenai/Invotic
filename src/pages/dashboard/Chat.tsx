@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom, useDeleteMessage } from '@/hooks/useChat';
+import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom, useDeleteMessage, useDeleteAllMessages } from '@/hooks/useChat';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,6 +18,7 @@ const Chat: React.FC = () => {
   const createRoom = useCreateChatRoom();
   const updateRoom = useUpdateChatRoom();
   const deleteMessage = useDeleteMessage();
+  const deleteAllMessages = useDeleteAllMessages();
   const { toast } = useToast();
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -218,6 +219,23 @@ const Chat: React.FC = () => {
     }
   };
 
+  const handleDeleteAllMessages = async () => {
+    if (!selectedRoom) return;
+    try {
+      await deleteAllMessages.mutateAsync({ roomId: selectedRoom });
+      toast({
+        title: 'All messages deleted',
+        description: 'All messages in this chat have been removed.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete messages.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getSenderProfile = (senderId: string) => {
     if (senderId === user?.id) return profile;
     return profiles?.find((p) => p.user_id === senderId);
@@ -279,6 +297,7 @@ const Chat: React.FC = () => {
             playingAudioId={playingAudioId}
             onPlayAudio={playAudio}
             onDeleteMessage={handleDeleteMessage}
+            onDeleteAllMessages={handleDeleteAllMessages}
             getSenderProfile={getSenderProfile}
             currentUserId={user?.id}
             isAdmin={role === 'admin'}
@@ -327,6 +346,7 @@ const Chat: React.FC = () => {
         playingAudioId={playingAudioId}
         onPlayAudio={playAudio}
         onDeleteMessage={handleDeleteMessage}
+        onDeleteAllMessages={handleDeleteAllMessages}
         getSenderProfile={getSenderProfile}
         currentUserId={user?.id}
         isAdmin={role === 'admin'}
