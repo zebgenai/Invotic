@@ -5,13 +5,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Loader2, Sparkles, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Sparkles, ArrowLeft, PenLine, Video, Image, Mic, Search, Users } from 'lucide-react';
 import { z } from 'zod';
+import { cn } from '@/lib/utils';
+
+const specialties = [
+  { value: 'script_writer', label: 'Script Writer', icon: PenLine },
+  { value: 'video_editor', label: 'Video Editor', icon: Video },
+  { value: 'thumbnail_designer', label: 'Thumbnail Designer', icon: Image },
+  { value: 'voice_over_artist', label: 'Voice Over Artist', icon: Mic },
+  { value: 'seo_specialist', label: 'SEO Specialist', icon: Search },
+  { value: 'channel_manager', label: 'Channel Manager', icon: Users },
+] as const;
+
+type SpecialtyValue = typeof specialties[number]['value'];
 
 const signUpSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  specialty: z.string().min(1, 'Please select your specialty'),
 });
 
 const signInSchema = z.object({
@@ -27,6 +40,7 @@ const AuthPage: React.FC = () => {
     fullName: '',
     email: '',
     password: '',
+    specialty: '' as SpecialtyValue | '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -54,7 +68,7 @@ const AuthPage: React.FC = () => {
           return;
         }
 
-        const { error } = await signUp(formData.email, formData.password, formData.fullName);
+        const { error } = await signUp(formData.email, formData.password, formData.fullName, formData.specialty);
         if (error) {
           if (error.message.includes('already registered')) {
             toast({
@@ -166,6 +180,38 @@ const AuthPage: React.FC = () => {
                 />
                 {errors.fullName && (
                   <p className="text-sm text-destructive">{errors.fullName}</p>
+                )}
+              </div>
+            )}
+
+            {isSignUp && (
+              <div className="space-y-2">
+                <Label>What will you do?</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {specialties.map((specialty) => {
+                    const Icon = specialty.icon;
+                    const isSelected = formData.specialty === specialty.value;
+                    return (
+                      <button
+                        key={specialty.value}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, specialty: specialty.value })}
+                        disabled={loading}
+                        className={cn(
+                          "flex items-center gap-2 p-3 rounded-lg border text-left transition-all text-sm",
+                          isSelected
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border hover:border-primary/50 hover:bg-muted/50"
+                        )}
+                      >
+                        <Icon className="w-4 h-4 shrink-0" />
+                        <span className="truncate">{specialty.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {errors.specialty && (
+                  <p className="text-sm text-destructive">{errors.specialty}</p>
                 )}
               </div>
             )}
