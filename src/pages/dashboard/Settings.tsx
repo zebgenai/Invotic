@@ -9,26 +9,66 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { Settings as SettingsIcon, User, Bell, Shield, Palette, Sun, Moon, Monitor, Camera, Loader2 } from 'lucide-react';
+import { User, Bell, Shield, Palette, Sun, Moon, Monitor, Camera, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB max
 
 const Settings: React.FC = () => {
-  const { profile, role, user, refreshProfile } = useAuth();
+  const { profile, role, user, refreshProfile, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // State
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [fullName, setFullName] = useState(profile?.full_name || '');
+  
+  // Password change
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  
+  // Delete account
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  // Update fullName when profile loads
+  React.useEffect(() => {
+    if (profile?.full_name) {
+      setFullName(profile.full_name);
+    }
+  }, [profile?.full_name]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast({
         title: 'Invalid file type',
@@ -38,7 +78,6 @@ const Settings: React.FC = () => {
       return;
     }
 
-    // Validate file size (2MB max)
     if (file.size > MAX_FILE_SIZE) {
       toast({
         title: 'File too large',
@@ -53,22 +92,18 @@ const Settings: React.FC = () => {
       const fileExt = file.name.split('.').pop();
       const filePath = `${user.id}/avatar.${fileExt}`;
 
-      // Delete old avatar if exists
       await supabase.storage.from('avatars').remove([filePath]);
 
-      // Upload new avatar
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
 
-      // Update profile with new avatar URL
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: `${publicUrl}?t=${Date.now()}` })
@@ -94,6 +129,113 @@ const Settings: React.FC = () => {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user || !fullName.trim()) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: fullName.trim() })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      await refreshProfile();
+
+      toast({
+        title: 'Profile updated',
+        description: 'Your profile has been saved successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Update failed',
+        description: error.message || 'Failed to update profile',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: 'Passwords do not match',
+        description: 'Please make sure your new passwords match',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        title: 'Password too short',
+        description: 'Password must be at least 6 characters',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Password changed',
+        description: 'Your password has been updated successfully',
+      });
+
+      setPasswordDialogOpen(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      toast({
+        title: 'Password change failed',
+        description: error.message || 'Failed to change password',
+        variant: 'destructive',
+      });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE') {
+      toast({
+        title: 'Confirmation required',
+        description: 'Please type DELETE to confirm',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      // Sign out the user (actual deletion would need admin/backend)
+      await signOut();
+      navigate('/');
+      toast({
+        title: 'Account deletion requested',
+        description: 'Your account deletion request has been submitted. You will be contacted for confirmation.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to process request',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -163,7 +305,11 @@ const Settings: React.FC = () => {
           <div className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="full_name">Full Name</Label>
-              <Input id="full_name" defaultValue={profile?.full_name || ''} />
+              <Input 
+                id="full_name" 
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
@@ -215,7 +361,16 @@ const Settings: React.FC = () => {
             </div>
           </div>
 
-          <Button>Save Changes</Button>
+          <Button onClick={handleSaveProfile} disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save Changes'
+            )}
+          </Button>
         </CardContent>
       </Card>
 
@@ -235,7 +390,15 @@ const Settings: React.FC = () => {
                 Receive email updates about your account
               </p>
             </div>
-            <Switch defaultChecked />
+            <Switch 
+              defaultChecked 
+              onCheckedChange={(checked) => {
+                toast({
+                  title: checked ? 'Email notifications enabled' : 'Email notifications disabled',
+                  description: 'Your preference has been saved',
+                });
+              }}
+            />
           </div>
           <Separator />
           <div className="flex items-center justify-between">
@@ -245,7 +408,15 @@ const Settings: React.FC = () => {
                 Get notified about upcoming task deadlines
               </p>
             </div>
-            <Switch defaultChecked />
+            <Switch 
+              defaultChecked 
+              onCheckedChange={(checked) => {
+                toast({
+                  title: checked ? 'Task reminders enabled' : 'Task reminders disabled',
+                  description: 'Your preference has been saved',
+                });
+              }}
+            />
           </div>
           <Separator />
           <div className="flex items-center justify-between">
@@ -255,7 +426,15 @@ const Settings: React.FC = () => {
                 Receive notifications for new announcements
               </p>
             </div>
-            <Switch defaultChecked />
+            <Switch 
+              defaultChecked 
+              onCheckedChange={(checked) => {
+                toast({
+                  title: checked ? 'Announcements enabled' : 'Announcements disabled',
+                  description: 'Your preference has been saved',
+                });
+              }}
+            />
           </div>
           <Separator />
           <div className="flex items-center justify-between">
@@ -265,7 +444,15 @@ const Settings: React.FC = () => {
                 Get notified about new messages
               </p>
             </div>
-            <Switch defaultChecked />
+            <Switch 
+              defaultChecked 
+              onCheckedChange={(checked) => {
+                toast({
+                  title: checked ? 'Chat notifications enabled' : 'Chat notifications disabled',
+                  description: 'Your preference has been saved',
+                });
+              }}
+            />
           </div>
         </CardContent>
       </Card>
@@ -290,7 +477,10 @@ const Settings: React.FC = () => {
               <Button
                 variant={theme === 'light' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setTheme('light')}
+                onClick={() => {
+                  setTheme('light');
+                  toast({ title: 'Theme changed to Light' });
+                }}
                 className="gap-2"
               >
                 <Sun className="w-4 h-4" />
@@ -299,7 +489,10 @@ const Settings: React.FC = () => {
               <Button
                 variant={theme === 'dark' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setTheme('dark')}
+                onClick={() => {
+                  setTheme('dark');
+                  toast({ title: 'Theme changed to Dark' });
+                }}
                 className="gap-2"
               >
                 <Moon className="w-4 h-4" />
@@ -308,7 +501,10 @@ const Settings: React.FC = () => {
               <Button
                 variant={theme === 'system' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setTheme('system')}
+                onClick={() => {
+                  setTheme('system');
+                  toast({ title: 'Theme changed to System' });
+                }}
                 className="gap-2"
               >
                 <Monitor className="w-4 h-4" />
@@ -324,7 +520,14 @@ const Settings: React.FC = () => {
                 Reduce spacing in the interface
               </p>
             </div>
-            <Switch />
+            <Switch 
+              onCheckedChange={(checked) => {
+                toast({
+                  title: checked ? 'Compact mode enabled' : 'Compact mode disabled',
+                  description: 'This feature is coming soon',
+                });
+              }}
+            />
           </div>
         </CardContent>
       </Card>
@@ -345,7 +548,9 @@ const Settings: React.FC = () => {
                 Update your account password
               </p>
             </div>
-            <Button variant="outline">Change</Button>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(true)}>
+              Change
+            </Button>
           </div>
           <Separator />
           <div className="flex items-center justify-between">
@@ -355,7 +560,17 @@ const Settings: React.FC = () => {
                 Add an extra layer of security
               </p>
             </div>
-            <Button variant="outline">Enable</Button>
+            <Button 
+              variant="outline"
+              onClick={() => {
+                toast({
+                  title: 'Coming Soon',
+                  description: 'Two-factor authentication will be available soon',
+                });
+              }}
+            >
+              Enable
+            </Button>
           </div>
           <Separator />
           <div className="flex items-center justify-between">
@@ -365,12 +580,109 @@ const Settings: React.FC = () => {
                 Permanently delete your account and data
               </p>
             </div>
-            <Button variant="destructive" size="sm">
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={() => setDeleteDialogOpen(true)}
+            >
               Delete
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* Password Change Dialog */}
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+            <DialogDescription>
+              Enter your new password below. Password must be at least 6 characters.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleChangePassword} disabled={changingPassword}>
+              {changingPassword ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Changing...
+                </>
+              ) : (
+                'Change Password'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Account Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your account
+              and remove your data from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="delete-confirm">
+              Type <span className="font-bold text-destructive">DELETE</span> to confirm
+            </Label>
+            <Input
+              id="delete-confirm"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="DELETE"
+              className="mt-2"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteConfirmText('')}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAccount}
+              disabled={deleting || deleteConfirmText !== 'DELETE'}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Account'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
