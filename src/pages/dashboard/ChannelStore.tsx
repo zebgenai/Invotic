@@ -13,6 +13,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Youtube, Plus, Search, Loader2 } from 'lucide-react';
 import { YouTubeChannel } from '@/types/database';
@@ -32,6 +42,7 @@ const ChannelStore: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isFetchingData, setIsFetchingData] = useState(false);
   const [refreshingChannelId, setRefreshingChannelId] = useState<string | null>(null);
+  const [channelToDelete, setChannelToDelete] = useState<YouTubeChannel | null>(null);
   const [formData, setFormData] = useState({
     channel_name: '',
     channel_link: '',
@@ -209,9 +220,11 @@ const ChannelStore: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteConfirm = async () => {
+    if (!channelToDelete) return;
+    
     try {
-      await deleteChannel.mutateAsync(id);
+      await deleteChannel.mutateAsync(channelToDelete.id);
       toast({
         title: 'Channel removed',
         description: 'The channel has been removed from the store.',
@@ -222,6 +235,8 @@ const ChannelStore: React.FC = () => {
         description: 'Failed to remove channel. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setChannelToDelete(null);
     }
   };
 
@@ -362,7 +377,7 @@ const ChannelStore: React.FC = () => {
               canEdit={canEditChannel(channel)}
               canDelete={canDeleteChannel(channel)}
               onEdit={() => handleEdit(channel)}
-              onDelete={() => handleDelete(channel.id)}
+              onDelete={() => setChannelToDelete(channel)}
               onRefresh={() => handleRefreshChannelData(channel)}
               isRefreshing={refreshingChannelId === channel.id}
             />
@@ -420,6 +435,27 @@ const ChannelStore: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!channelToDelete} onOpenChange={(open) => !open && setChannelToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Channel</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{channelToDelete?.channel_name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteChannel.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
