@@ -92,12 +92,24 @@ const Chat: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file || !selectedRoom || !user) return;
 
+    // Only allow image files
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Only image files are allowed in chat.',
+        variant: 'destructive',
+      });
+      e.target.value = '';
+      return;
+    }
+
     if (file.size > 10 * 1024 * 1024) {
       toast({
         title: 'File too large',
-        description: 'Please upload a file smaller than 10MB.',
+        description: 'Please upload an image smaller than 10MB.',
         variant: 'destructive',
       });
+      e.target.value = '';
       return;
     }
 
@@ -113,24 +125,22 @@ const Chat: React.FC = () => {
         .from('chat-files')
         .getPublicUrl(fileName);
 
-      const fileType = file.type.startsWith('image/') ? 'image' : 'file';
-
       await sendMessage.mutateAsync({
         roomId: selectedRoom,
-        content: `📎 ${file.name}`,
+        content: `📷 ${file.name}`,
         fileUrl: urlData.publicUrl,
-        fileType,
+        fileType: 'image',
       });
 
       toast({
-        title: 'File sent!',
-        description: 'Your file has been delivered.',
+        title: 'Image sent!',
+        description: 'Your image has been delivered.',
       });
     } catch (error) {
-      console.error('File upload error:', error);
+      console.error('Image upload error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to send file. Please try again.',
+        description: 'Failed to send image. Please try again.',
         variant: 'destructive',
       });
     }

@@ -216,7 +216,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             type="file"
             onChange={handleFileUpload}
             className="hidden"
-            accept="image/*,.pdf,.doc,.docx,.txt"
+            accept="image/*"
           />
           
           <div className="flex-1 flex items-center gap-2 p-1 rounded-2xl bg-secondary/50 border border-border/50 focus-within:border-primary/30 focus-within:shadow-lg focus-within:shadow-primary/5 transition-all">
