@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useChannels, useCreateChannel, useUpdateChannel, useDeleteChannel } from '@/hooks/useChannels';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,10 +14,10 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Youtube, Plus, ExternalLink, Trash2, Users, Video, Search, Pencil, Eye, Loader2, RefreshCw } from 'lucide-react';
-import { format } from 'date-fns';
+import { Youtube, Plus, Search, Loader2 } from 'lucide-react';
 import { YouTubeChannel } from '@/types/database';
 import { supabase } from '@/integrations/supabase/client';
+import ChannelCard from '@/components/dashboard/ChannelCard';
 
 const ChannelStore: React.FC = () => {
   const { user, role } = useAuth();
@@ -239,12 +239,6 @@ const ChannelStore: React.FC = () => {
     return channel.user_id === user?.id || role === 'admin' || role === 'manager';
   };
 
-  const formatNumber = (num: number | null | undefined) => {
-    if (num === null || num === undefined) return '0';
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toLocaleString();
-  };
 
   return (
     <div className="space-y-6">
@@ -362,87 +356,16 @@ const ChannelStore: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredChannels?.map((channel) => (
-            <Card key={channel.id} className="glass-card-hover group">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center">
-                      <Youtube className="w-6 h-6 text-destructive" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg line-clamp-1">
-                        {channel.channel_name}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">by {channel.creator_name}</p>
-                    </div>
-                  </div>
-                  {canEditChannel(channel) && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleRefreshChannelData(channel)}
-                      disabled={refreshingChannelId === channel.id}
-                    >
-                      <RefreshCw className={`w-4 h-4 ${refreshingChannelId === channel.id ? 'animate-spin' : ''}`} />
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                {channel.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                    {channel.description}
-                  </p>
-                )}
-                <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                  <div className="flex items-center gap-1" title="Subscribers">
-                    <Users className="w-4 h-4" />
-                    <span>{formatNumber(channel.subscriber_count)}</span>
-                  </div>
-                  <div className="flex items-center gap-1" title="Videos">
-                    <Video className="w-4 h-4" />
-                    <span>{formatNumber(channel.video_count)}</span>
-                  </div>
-                  <div className="flex items-center gap-1" title="Total Views">
-                    <Eye className="w-4 h-4" />
-                    <span>{formatNumber(channel.view_count)}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => window.open(channel.channel_link, '_blank')}
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Visit Channel
-                  </Button>
-                  {canEditChannel(channel) && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleEdit(channel)}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                  )}
-                  {canDeleteChannel(channel) && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="text-destructive hover:bg-destructive/10"
-                      onClick={() => handleDelete(channel.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-3">
-                  Added {format(new Date(channel.created_at), 'MMM d, yyyy')}
-                </p>
-              </CardContent>
-            </Card>
+            <ChannelCard
+              key={channel.id}
+              channel={channel}
+              canEdit={canEditChannel(channel)}
+              canDelete={canDeleteChannel(channel)}
+              onEdit={() => handleEdit(channel)}
+              onDelete={() => handleDelete(channel.id)}
+              onRefresh={() => handleRefreshChannelData(channel)}
+              isRefreshing={refreshingChannelId === channel.id}
+            />
           ))}
         </div>
       )}
