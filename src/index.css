@@ -168,6 +168,179 @@
   }
 }
 
+/* 3D Animations and Effects */
+@layer utilities {
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .transform-style-3d {
+    transform-style: preserve-3d;
+  }
+
+  /* Floating animations */
+  @keyframes float-slow {
+    0%, 100% {
+      transform: translateY(0) translateX(0) rotate(0deg);
+    }
+    25% {
+      transform: translateY(-20px) translateX(10px) rotate(2deg);
+    }
+    50% {
+      transform: translateY(-10px) translateX(-5px) rotate(-1deg);
+    }
+    75% {
+      transform: translateY(-25px) translateX(5px) rotate(1deg);
+    }
+  }
+
+  @keyframes float-medium {
+    0%, 100% {
+      transform: translateY(0) translateX(0);
+    }
+    33% {
+      transform: translateY(-15px) translateX(-10px);
+    }
+    66% {
+      transform: translateY(-25px) translateX(10px);
+    }
+  }
+
+  @keyframes float-fast {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-30px);
+    }
+  }
+
+  @keyframes spin-slow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes bounce-slow {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes particle {
+    0% {
+      transform: translateY(0) translateX(0) scale(1);
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-100px) translateX(50px) scale(0);
+      opacity: 0;
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes gradient-x {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  @keyframes gradient-shift {
+    0%, 100% {
+      opacity: 0.5;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  .animate-float-slow {
+    animation: float-slow 8s ease-in-out infinite;
+  }
+
+  .animate-float-medium {
+    animation: float-medium 6s ease-in-out infinite;
+  }
+
+  .animate-float-fast {
+    animation: float-fast 4s ease-in-out infinite;
+  }
+
+  .animate-spin-slow {
+    animation: spin-slow 20s linear infinite;
+  }
+
+  .animate-bounce-slow {
+    animation: bounce-slow 3s ease-in-out infinite;
+  }
+
+  .animate-particle {
+    animation: particle 5s ease-in-out infinite;
+  }
+
+  .animate-shimmer {
+    animation: shimmer 3s linear infinite;
+  }
+
+  .animate-gradient-x {
+    animation: gradient-x 4s ease infinite;
+  }
+
+  .animate-gradient-shift {
+    animation: gradient-shift 4s ease-in-out infinite;
+  }
+
+  /* 3D card hover effects */
+  .card-3d {
+    transition: transform 0.3s ease;
+    transform-style: preserve-3d;
+  }
+
+  .card-3d:hover {
+    transform: translateY(-5px) rotateX(2deg) rotateY(-2deg);
+  }
+
+  /* Glow effects */
+  .glow-primary {
+    box-shadow: 0 0 40px -10px hsl(262 83% 58% / 0.5);
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 40px -10px hsl(262 70% 50% / 0.5);
+  }
+
+  /* Text shadow for 3D effect */
+  .text-shadow-3d {
+    text-shadow: 
+      1px 1px 0 hsl(var(--primary) / 0.3),
+      2px 2px 0 hsl(var(--primary) / 0.2),
+      3px 3px 0 hsl(var(--primary) / 0.1);
+  }
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
@@ -196,4 +369,9 @@
 
 .recharts-text {
   fill: hsl(var(--muted-foreground));
+}
+
+/* Smooth page transitions */
+* {
+  scroll-behavior: smooth;
 }

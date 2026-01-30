@@ -14,13 +14,17 @@ import {
   Shield,
   Zap,
   Mail,
-  Phone
+  Phone,
+  Play,
+  Star,
+  Rocket
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     if (!loading && user) {
@@ -28,174 +32,287 @@ const Index = () => {
     }
   }, [user, loading, navigate]);
 
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({
+        x: (e.clientX / window.innerWidth - 0.5) * 20,
+        y: (e.clientY / window.innerHeight - 0.5) * 20
+      });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
   const features = [
     {
       icon: Users,
       title: "Team Management",
       description: "Manage creators, assign roles, and track performance",
       color: "text-primary",
-      bg: "bg-primary/10"
+      bg: "bg-primary/10",
+      gradient: "from-primary/20 to-primary/5"
     },
     {
       icon: Youtube,
       title: "Channel Store",
       description: "Showcase and manage YouTube channels in one place",
       color: "text-destructive",
-      bg: "bg-destructive/10"
+      bg: "bg-destructive/10",
+      gradient: "from-destructive/20 to-destructive/5"
     },
     {
       icon: CheckSquare,
       title: "Task Tracking",
       description: "Assign tasks, set priorities, and monitor progress",
       color: "text-success",
-      bg: "bg-success/10"
+      bg: "bg-success/10",
+      gradient: "from-success/20 to-success/5"
     },
     {
       icon: MessageCircle,
       title: "Real-time Chat",
       description: "Private messages, group chats, and broadcasts",
       color: "text-info",
-      bg: "bg-info/10"
+      bg: "bg-info/10",
+      gradient: "from-info/20 to-info/5"
     },
     {
       icon: BarChart3,
       title: "Analytics",
       description: "Track growth, engagement, and contribution metrics",
       color: "text-warning",
-      bg: "bg-warning/10"
+      bg: "bg-warning/10",
+      gradient: "from-warning/20 to-warning/5"
     },
     {
       icon: Trophy,
       title: "Gamification",
       description: "Badges, leaderboards, and achievement tracking",
       color: "text-accent",
-      bg: "bg-accent/10"
+      bg: "bg-accent/10",
+      gradient: "from-accent/20 to-accent/5"
     }
   ];
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Animated Background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-primary/20 rounded-full blur-[80px] md:blur-[120px] animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-[250px] md:w-[500px] h-[250px] md:h-[500px] bg-accent/15 rounded-full blur-[60px] md:blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] md:w-[400px] h-[200px] md:h-[400px] bg-info/10 rounded-full blur-[50px] md:blur-[80px] animate-pulse" style={{ animationDelay: '2s' }} />
+      {/* Animated 3D Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none perspective-1000">
+        {/* Animated gradient orbs with 3D depth */}
+        <div 
+          className="absolute top-1/4 left-1/4 w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-primary/30 rounded-full blur-[80px] md:blur-[120px] animate-float-slow"
+          style={{ transform: `translate3d(${mousePosition.x * 0.5}px, ${mousePosition.y * 0.5}px, 0)` }}
+        />
+        <div 
+          className="absolute bottom-1/4 right-1/4 w-[250px] md:w-[500px] h-[250px] md:h-[500px] bg-accent/25 rounded-full blur-[60px] md:blur-[100px] animate-float-medium"
+          style={{ transform: `translate3d(${mousePosition.x * -0.3}px, ${mousePosition.y * -0.3}px, 0)` }}
+        />
+        <div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] md:w-[400px] h-[200px] md:h-[400px] bg-info/20 rounded-full blur-[50px] md:blur-[80px] animate-float-fast"
+          style={{ transform: `translate3d(${mousePosition.x * 0.2}px, ${mousePosition.y * 0.2}px, 0)` }}
+        />
         
-        {/* Grid overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(139,92,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.03)_1px,transparent_1px)] bg-[size:40px_40px] md:bg-[size:60px_60px]" />
+        {/* Floating 3D geometric shapes */}
+        <div className="absolute top-20 right-[15%] w-16 h-16 md:w-24 md:h-24 border-2 border-primary/20 rounded-xl animate-spin-slow transform rotate-45" />
+        <div className="absolute bottom-32 left-[10%] w-12 h-12 md:w-20 md:h-20 border-2 border-accent/20 rounded-full animate-bounce-slow" />
+        <div className="absolute top-1/3 right-[8%] w-8 h-8 md:w-16 md:h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg animate-float-medium transform -rotate-12" />
+        <div className="absolute bottom-1/4 right-[20%] w-10 h-10 md:w-14 md:h-14 border border-info/30 rounded-full animate-pulse" />
+        <div className="absolute top-[60%] left-[5%] w-6 h-6 md:w-12 md:h-12 bg-gradient-to-tr from-warning/20 to-transparent rounded-full animate-float-fast" />
+        
+        {/* Animated particles */}
+        {[...Array(6)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-1 h-1 md:w-2 md:h-2 bg-primary/40 rounded-full animate-particle"
+            style={{
+              left: `${15 + i * 15}%`,
+              top: `${20 + (i % 3) * 25}%`,
+              animationDelay: `${i * 0.5}s`,
+              animationDuration: `${3 + i}s`
+            }}
+          />
+        ))}
+        
+        {/* 3D Grid overlay with perspective */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(139,92,246,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.05)_1px,transparent_1px)] bg-[size:40px_40px] md:bg-[size:60px_60px] transform-gpu" 
+          style={{ transform: `perspective(1000px) rotateX(60deg) translateY(-50%)`, transformOrigin: 'center top' }}
+        />
       </div>
 
-      {/* Navigation */}
-      <nav className="relative z-10 flex items-center justify-between px-4 py-3 md:px-12 md:py-4">
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+      {/* Navigation with glassmorphism */}
+      <nav className="relative z-10 flex items-center justify-between px-4 py-3 md:px-12 md:py-4 backdrop-blur-sm border-b border-border/50">
+        <div className="flex items-center gap-2 md:gap-3 group cursor-pointer">
+          <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-primary to-accent p-0.5 group-hover:shadow-lg group-hover:shadow-primary/25 transition-all duration-300 transform group-hover:scale-110">
+            <div className="w-full h-full rounded-[10px] bg-background flex items-center justify-center">
+              <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+            </div>
           </div>
-          <span className="font-display font-bold text-lg md:text-xl">Partnerunityx</span>
+          <span className="font-display font-bold text-lg md:text-xl bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">Partnerunityx</span>
         </div>
         <div className="flex items-center gap-2 md:gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/auth')} className="text-sm">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/auth')} className="text-sm hover:bg-primary/10 transition-all duration-300">
             Sign In
           </Button>
-          <Button size="sm" onClick={() => navigate('/auth')} className="text-sm">
-            Get Started
+          <Button size="sm" onClick={() => navigate('/auth')} className="text-sm relative overflow-hidden group">
+            <span className="relative z-10">Get Started</span>
+            <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] animate-shimmer opacity-0 group-hover:opacity-100 transition-opacity" />
           </Button>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative z-10 flex flex-col items-center justify-center px-4 pt-12 pb-16 md:px-6 md:pt-32 md:pb-32">
+      {/* Hero Section with 3D elements */}
+      <section className="relative z-10 flex flex-col items-center justify-center px-4 pt-12 pb-16 md:px-6 md:pt-24 md:pb-32">
         <div className="text-center max-w-5xl mx-auto">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-primary/10 border border-primary/20 mb-6 md:mb-8 animate-fade-in">
-            <Zap className="w-3 h-3 md:w-4 md:h-4 text-primary" />
-            <span className="text-xs md:text-sm font-medium text-primary">YouTube Automation Partnership</span>
+          {/* Animated Badge */}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-gradient-to-r from-primary/20 via-primary/10 to-accent/20 border border-primary/30 mb-6 md:mb-8 animate-fade-in backdrop-blur-sm hover:scale-105 transition-transform cursor-default group">
+            <div className="relative">
+              <Zap className="w-3 h-3 md:w-4 md:h-4 text-primary animate-pulse" />
+              <div className="absolute inset-0 bg-primary/50 blur-sm rounded-full animate-ping" />
+            </div>
+            <span className="text-xs md:text-sm font-medium bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">YouTube Automation Partnership</span>
+            <Rocket className="w-3 h-3 md:w-4 md:h-4 text-accent group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
           </div>
 
-          {/* Heading */}
-          <h1 className="text-3xl sm:text-4xl md:text-7xl lg:text-8xl font-display font-bold mb-4 md:mb-6 animate-fade-in leading-tight">
-            Want to Earn via
-            <br />
-            <span className="gradient-text">YouTube Automation?</span>
-          </h1>
+          {/* 3D Heading with depth effect */}
+          <div className="relative mb-4 md:mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-7xl lg:text-8xl font-display font-bold animate-fade-in leading-tight relative z-10">
+              <span className="inline-block hover:scale-105 transition-transform duration-300">Want to Earn via</span>
+              <br />
+              <span className="relative inline-block">
+                <span className="gradient-text animate-gradient-x bg-[length:200%_auto]">YouTube Automation?</span>
+                {/* 3D shadow effect */}
+                <span className="absolute -bottom-1 left-1 text-primary/10 -z-10 blur-[2px]">YouTube Automation?</span>
+              </span>
+            </h1>
+          </div>
 
           <h2 className="text-xl sm:text-2xl md:text-3xl font-display font-semibold text-foreground mb-4 md:mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            Let's Do It Together.
+            <span className="inline-flex items-center gap-2">
+              Let's Do It Together
+              <Star className="w-5 h-5 md:w-6 md:h-6 text-warning animate-spin-slow" />
+            </span>
           </h2>
 
           <p className="text-base sm:text-lg md:text-2xl text-muted-foreground mb-4 max-w-3xl mx-auto animate-fade-in px-2" style={{ animationDelay: '0.15s' }}>
-            I'm <span className="text-primary font-semibold">Sheraz Khan</span>, and I'm looking for partners. Use my 6 years of experience to skip the struggle and start your YouTube journey for free.
+            I'm <span className="text-primary font-semibold relative">
+              Sheraz Khan
+              <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-primary to-accent" />
+            </span>, and I'm looking for partners. Use my 6 years of experience to skip the struggle and start your YouTube journey for free.
           </p>
 
-          {/* The Message */}
-          <div className="glass-card p-4 md:p-6 max-w-2xl mx-auto mb-8 md:mb-10 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            <p className="text-base md:text-xl text-foreground font-medium">
-              <span className="text-success">No fees.</span> <span className="text-info">No fluff.</span> Just <span className="text-primary">100% actionable YouTube Automation</span> and a partnership built for growth.
+          {/* Glassmorphism Message Card with 3D hover */}
+          <div 
+            className="glass-card p-4 md:p-6 max-w-2xl mx-auto mb-8 md:mb-10 animate-fade-in group hover:shadow-2xl hover:shadow-primary/20 transition-all duration-500 transform hover:-translate-y-1"
+            style={{ animationDelay: '0.2s' }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <p className="text-base md:text-xl text-foreground font-medium relative z-10">
+              <span className="text-success font-bold">No fees.</span>{" "}
+              <span className="text-info font-bold">No fluff.</span>{" "}
+              Just <span className="text-primary font-bold bg-primary/10 px-2 py-0.5 rounded">100% actionable YouTube Automation</span> and a partnership built for growth.
             </p>
           </div>
 
-          {/* CTA Buttons */}
+          {/* 3D CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center mb-12 md:mb-20 animate-fade-in px-4" style={{ animationDelay: '0.25s' }}>
-            <Button size="lg" onClick={() => navigate('/auth')} className="text-base md:text-lg px-6 md:px-8 h-12 md:h-14 w-full sm:w-auto">
-              Join as Partner
-              <ArrowRight className="w-4 h-4 md:w-5 md:h-5 ml-2" />
+            <Button 
+              size="lg" 
+              onClick={() => navigate('/auth')} 
+              className="text-base md:text-lg px-6 md:px-8 h-12 md:h-14 w-full sm:w-auto relative overflow-hidden group shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 transition-all duration-300 transform hover:-translate-y-1"
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                Join as Partner
+                <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
+              </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] animate-shimmer" />
             </Button>
-            <Button size="lg" variant="outline" onClick={() => navigate('/auth')} className="h-12 md:h-14 w-full sm:w-auto">
-              <Shield className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-              Learn More
+            <Button 
+              size="lg" 
+              variant="outline" 
+              onClick={() => navigate('/auth')} 
+              className="h-12 md:h-14 w-full sm:w-auto group border-2 hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 transform hover:-translate-y-1"
+            >
+              <Play className="w-4 h-4 md:w-5 md:h-5 mr-2 group-hover:scale-110 transition-transform" />
+              Watch Demo
             </Button>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 md:gap-8 max-w-lg mx-auto animate-fade-in px-4" style={{ animationDelay: '0.3s' }}>
-            <div className="text-center">
-              <p className="text-2xl md:text-4xl font-bold gradient-text">6+</p>
-              <p className="text-xs md:text-sm text-muted-foreground">Years Experience</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl md:text-4xl font-bold gradient-text">100%</p>
-              <p className="text-xs md:text-sm text-muted-foreground">Free to Start</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl md:text-4xl font-bold gradient-text">0</p>
-              <p className="text-xs md:text-sm text-muted-foreground">Hidden Fees</p>
-            </div>
+          {/* 3D Stats Cards */}
+          <div className="grid grid-cols-3 gap-4 md:gap-8 max-w-2xl mx-auto animate-fade-in px-4" style={{ animationDelay: '0.3s' }}>
+            {[
+              { value: "6+", label: "Years Experience", delay: 0 },
+              { value: "100%", label: "Free to Start", delay: 0.1 },
+              { value: "0", label: "Hidden Fees", delay: 0.2 }
+            ].map((stat, i) => (
+              <div 
+                key={stat.label}
+                className="text-center p-4 md:p-6 rounded-2xl bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-sm border border-border/50 hover:border-primary/30 transition-all duration-300 transform hover:-translate-y-2 hover:shadow-lg hover:shadow-primary/10 group"
+                style={{ animationDelay: `${0.3 + stat.delay}s` }}
+              >
+                <p className="text-2xl md:text-5xl font-bold gradient-text mb-1 group-hover:scale-110 transition-transform inline-block">{stat.value}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">{stat.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Founder Portfolio Section */}
+      {/* Founder Section with 3D Card */}
       <section className="relative z-10 px-4 md:px-6 pb-12 md:pb-20">
         <div className="max-w-4xl mx-auto">
-          <div className="glass-card p-6 md:p-12 relative overflow-hidden animate-fade-in">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
-            <div className="relative z-10 flex flex-col items-center gap-6 md:flex-row md:items-center md:gap-8">
-              {/* Avatar */}
-              <div className="flex-shrink-0">
-                <div className="w-28 h-28 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-primary to-accent p-1">
-                  <img 
-                    src={sherazPhoto} 
-                    alt="Sheraz Khan" 
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                </div>
-              </div>
+          <div className="relative group perspective-1000">
+            <div className="glass-card p-6 md:p-12 relative overflow-hidden animate-fade-in transition-all duration-500 transform-gpu group-hover:shadow-2xl group-hover:shadow-primary/20"
+              style={{ 
+                transform: `rotateY(${mousePosition.x * 0.02}deg) rotateX(${mousePosition.y * -0.02}deg)`,
+                transformStyle: 'preserve-3d'
+              }}
+            >
+              {/* Animated gradient background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 animate-gradient-shift" />
+              <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary/20 rounded-full blur-3xl animate-float-slow" />
+              <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-accent/20 rounded-full blur-3xl animate-float-medium" />
               
-              {/* Content */}
-              <div className="text-center md:text-left">
-                <h3 className="text-xl md:text-3xl font-display font-bold mb-2">Sheraz Khan</h3>
-                <p className="text-primary font-medium mb-3 md:mb-4">Founder & YouTube Automation Expert</p>
-                <p className="text-muted-foreground text-base md:text-lg leading-relaxed">
-                  I started in <span className="text-foreground font-semibold">2020</span>. After <span className="text-foreground font-semibold">6 years</span> of trial and error, I created this portal to help others earn without making the same mistakes I did.
-                </p>
-                <div className="flex items-center gap-4 mt-4 md:mt-6 justify-center md:justify-start flex-wrap">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Youtube className="w-4 h-4 text-destructive" />
-                    <span>YouTube Expert</span>
+              <div className="relative z-10 flex flex-col items-center gap-6 md:flex-row md:items-center md:gap-8">
+                {/* 3D Avatar with rotating border */}
+                <div className="flex-shrink-0 relative">
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary via-accent to-primary animate-spin-slow blur-md opacity-60" style={{ padding: '4px' }} />
+                  <div className="relative w-28 h-28 md:w-44 md:h-44 rounded-full bg-gradient-to-br from-primary to-accent p-1 transform group-hover:scale-105 transition-transform duration-500">
+                    <img 
+                      src={sherazPhoto} 
+                      alt="Sheraz Khan" 
+                      className="w-full h-full rounded-full object-cover"
+                    />
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Trophy className="w-4 h-4 text-warning" />
-                    <span>Since 2020</span>
+                  {/* Floating badge */}
+                  <div className="absolute -bottom-2 -right-2 bg-gradient-to-br from-warning to-warning/80 rounded-full p-2 md:p-3 shadow-lg animate-bounce-slow">
+                    <Trophy className="w-4 h-4 md:w-5 md:h-5 text-warning-foreground" />
+                  </div>
+                </div>
+                
+                {/* Content */}
+                <div className="text-center md:text-left flex-1">
+                  <div className="flex items-center gap-3 justify-center md:justify-start mb-2">
+                    <h3 className="text-xl md:text-3xl font-display font-bold">Sheraz Khan</h3>
+                    <div className="px-2 py-1 rounded-full bg-primary/20 border border-primary/30">
+                      <span className="text-xs font-medium text-primary">Founder</span>
+                    </div>
+                  </div>
+                  <p className="text-primary font-medium mb-3 md:mb-4 flex items-center gap-2 justify-center md:justify-start">
+                    <Sparkles className="w-4 h-4" />
+                    YouTube Automation Expert
+                  </p>
+                  <p className="text-muted-foreground text-base md:text-lg leading-relaxed">
+                    I started in <span className="text-foreground font-semibold bg-primary/10 px-1 rounded">2020</span>. After <span className="text-foreground font-semibold bg-accent/10 px-1 rounded">6 years</span> of trial and error, I created this portal to help others earn without making the same mistakes I did.
+                  </p>
+                  <div className="flex items-center gap-4 mt-4 md:mt-6 justify-center md:justify-start flex-wrap">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground px-3 py-1.5 rounded-full bg-destructive/10 border border-destructive/20">
+                      <Youtube className="w-4 h-4 text-destructive" />
+                      <span>YouTube Expert</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground px-3 py-1.5 rounded-full bg-warning/10 border border-warning/20">
+                      <Trophy className="w-4 h-4 text-warning" />
+                      <span>Since 2020</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -204,12 +321,15 @@ const Index = () => {
         </div>
       </section>
 
-
-      {/* Features Section */}
+      {/* Features Section with 3D Cards */}
       <section className="relative z-10 px-4 md:px-6 pb-16 md:pb-32">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 md:mb-16">
-            <h2 className="text-2xl md:text-4xl font-display font-bold mb-3 md:mb-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20 mb-4 animate-fade-in">
+              <Sparkles className="w-4 h-4 text-accent" />
+              <span className="text-sm font-medium text-accent">Powerful Features</span>
+            </div>
+            <h2 className="text-2xl md:text-5xl font-display font-bold mb-3 md:mb-4">
               Everything You Need
             </h2>
             <p className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto px-4">
@@ -221,70 +341,95 @@ const Index = () => {
             {features.map((feature, index) => (
               <div 
                 key={feature.title}
-                className="glass-card-hover p-5 md:p-6 animate-fade-in"
+                className="group relative animate-fade-in"
                 style={{ animationDelay: `${0.1 * index}s` }}
               >
-                <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl ${feature.bg} flex items-center justify-center mb-3 md:mb-4`}>
-                  <feature.icon className={`w-5 h-5 md:w-6 md:h-6 ${feature.color}`} />
+                <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+                <div className="relative glass-card p-5 md:p-6 h-full transform transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-xl border border-border/50 group-hover:border-primary/30">
+                  <div className={`w-12 h-12 md:w-14 md:h-14 rounded-xl ${feature.bg} flex items-center justify-center mb-3 md:mb-4 transform transition-all duration-300 group-hover:scale-110 group-hover:rotate-3`}>
+                    <feature.icon className={`w-6 h-6 md:w-7 md:h-7 ${feature.color}`} />
+                  </div>
+                  <h3 className="text-lg md:text-xl font-semibold mb-2 group-hover:text-primary transition-colors">{feature.title}</h3>
+                  <p className="text-muted-foreground text-sm md:text-base">{feature.description}</p>
+                  <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ArrowRight className={`w-5 h-5 ${feature.color}`} />
+                  </div>
                 </div>
-                <h3 className="text-lg md:text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-muted-foreground text-sm md:text-base">{feature.description}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* CTA Section with 3D effects */}
       <section className="relative z-10 px-4 md:px-6 pb-12 md:pb-20">
         <div className="max-w-4xl mx-auto">
-          <div className="glass-card p-8 md:p-12 text-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10" />
-            <div className="relative z-10">
-              <h2 className="text-2xl md:text-4xl font-display font-bold mb-3 md:mb-4">
-                Ready to Get Started?
-              </h2>
-              <p className="text-muted-foreground text-base md:text-lg mb-6 md:mb-8 max-w-xl mx-auto">
-                Join thousands of creator teams already using Partnerunityx to manage their communities.
-              </p>
-              <Button size="lg" onClick={() => navigate('/auth')} className="text-base md:text-lg px-6 md:px-8 h-12 md:h-14">
-                Create Free Account
-                <ArrowRight className="w-4 h-4 md:w-5 md:h-5 ml-2" />
-              </Button>
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/30 via-accent/30 to-primary/30 rounded-3xl blur-2xl opacity-50 group-hover:opacity-75 transition-opacity animate-pulse" />
+            <div className="glass-card p-8 md:p-12 text-center relative overflow-hidden border-2 border-primary/20 group-hover:border-primary/40 transition-colors">
+              {/* Animated background elements */}
+              <div className="absolute top-0 left-1/4 w-32 h-32 bg-primary/10 rounded-full blur-3xl animate-float-slow" />
+              <div className="absolute bottom-0 right-1/4 w-32 h-32 bg-accent/10 rounded-full blur-3xl animate-float-medium" />
+              
+              <div className="relative z-10">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 border border-success/20 mb-6 animate-bounce-slow">
+                  <Rocket className="w-4 h-4 text-success" />
+                  <span className="text-sm font-medium text-success">Start Your Journey Today</span>
+                </div>
+                <h2 className="text-2xl md:text-5xl font-display font-bold mb-3 md:mb-4">
+                  Ready to Get Started?
+                </h2>
+                <p className="text-muted-foreground text-base md:text-lg mb-6 md:mb-8 max-w-xl mx-auto">
+                  Join thousands of creator teams already using Partnerunityx to manage their communities.
+                </p>
+                <Button 
+                  size="lg" 
+                  onClick={() => navigate('/auth')} 
+                  className="text-base md:text-lg px-8 md:px-10 h-12 md:h-16 relative overflow-hidden group/btn shadow-2xl shadow-primary/30 hover:shadow-primary/50 transition-all transform hover:scale-105"
+                >
+                  <span className="relative z-10 flex items-center gap-2 font-semibold">
+                    Create Free Account
+                    <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] animate-shimmer" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-border px-4 md:px-6 py-8 md:py-12">
+      <footer className="relative z-10 border-t border-border/50 px-4 md:px-6 py-8 md:py-12 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col items-center gap-6 md:flex-row md:justify-between md:gap-8 mb-6 md:mb-8">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Sparkles className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary" />
+            <div className="flex items-center gap-2 md:gap-3 group cursor-pointer">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-primary to-accent p-0.5 group-hover:shadow-lg group-hover:shadow-primary/25 transition-all transform group-hover:scale-110">
+                <div className="w-full h-full rounded-[10px] bg-background flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                </div>
               </div>
               <span className="font-display font-bold text-sm md:text-base">Partnerunityx</span>
             </div>
             
             {/* Contact Support */}
             <div className="flex flex-col sm:flex-row items-center gap-4 md:gap-6">
-              <div className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-                <Mail className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary" />
-                <a href="mailto:help@partnerunityx.com" className="text-xs md:text-sm">
-                  help@partnerunityx.com
-                </a>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-                <Phone className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary" />
-                <a href="tel:+923189177512" className="text-xs md:text-sm">
-                  +92 318 9177512
-                </a>
-              </div>
+              <a href="mailto:help@partnerunityx.com" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group">
+                <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                  <Mail className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary" />
+                </div>
+                <span className="text-xs md:text-sm">help@partnerunityx.com</span>
+              </a>
+              <a href="tel:+923189177512" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group">
+                <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                  <Phone className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary" />
+                </div>
+                <span className="text-xs md:text-sm">+92 318 9177512</span>
+              </a>
             </div>
           </div>
           
-          <div className="border-t border-border pt-4 md:pt-6 text-center">
+          <div className="border-t border-border/50 pt-4 md:pt-6 text-center">
             <p className="text-xs md:text-sm text-muted-foreground">
               © 2026 Partnerunityx. All rights reserved.
             </p>
