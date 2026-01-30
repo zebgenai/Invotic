@@ -39,6 +39,21 @@ const Analytics: React.FC = () => {
 
   const COLORS = ['hsl(262, 83%, 58%)', 'hsl(199, 89%, 48%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)'];
 
+  // Only admins can access analytics
+  if (role !== 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+          <BarChart3 className="w-10 h-10 text-destructive" />
+        </div>
+        <h1 className="text-2xl font-bold mb-2">Access Restricted</h1>
+        <p className="text-muted-foreground max-w-md">
+          Analytics dashboard is only available to administrators. Please contact your admin if you need access.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
