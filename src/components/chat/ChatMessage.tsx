@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Play, Pause, Paperclip, Trash2, Check, CheckCheck } from 'lucide-react';
+import { Play, Pause, Trash2, CheckCheck, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -137,31 +137,30 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 
           {/* Image attachment */}
           {message.file_type === 'image' && message.file_url && (
-            <div className="mb-2 -mx-2 -mt-1">
+            <div className="mb-2 -mx-2 -mt-1 relative group/image">
               <img 
                 src={message.file_url} 
                 alt="Attachment" 
                 className="max-w-full rounded-xl max-h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
               />
-            </div>
-          )}
-
-          {/* File attachment */}
-          {message.file_type === 'file' && message.file_url && (
-            <a 
-              href={message.file_url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className={cn(
-                "flex items-center gap-2 p-2 rounded-lg mb-2 transition-colors",
-                isOwn 
-                  ? "bg-white/10 hover:bg-white/20 text-white" 
-                  : "bg-primary/5 hover:bg-primary/10 text-primary"
+              {/* Admin download button */}
+              {isAdmin && (
+                <a
+                  href={message.file_url}
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    "absolute top-2 right-2 opacity-0 group-hover/image:opacity-100 transition-opacity",
+                    "p-2 rounded-lg backdrop-blur-sm",
+                    "bg-black/50 hover:bg-black/70 text-white"
+                  )}
+                  title="Download image"
+                >
+                  <Download className="w-4 h-4" />
+                </a>
               )}
-            >
-              <Paperclip className="w-4 h-4" />
-              <span className="text-sm font-medium">View attachment</span>
-            </a>
+            </div>
           )}
 
           <p className="text-sm whitespace-pre-wrap relative z-10">{message.content}</p>
