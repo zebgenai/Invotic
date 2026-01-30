@@ -1,9 +1,9 @@
 import React from 'react';
-import { useChartData, useDashboardStats, useActivityLogs } from '@/hooks/useAnalytics';
+import { useChartData, useDashboardStats, useActivityLogs, useYouTubeAnalytics } from '@/hooks/useAnalytics';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import YouTubeAnalyticsSection from '@/components/dashboard/YouTubeAnalyticsSection';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   BarChart3,
   TrendingUp,
@@ -13,6 +13,8 @@ import {
   CheckSquare,
   Clock,
   Activity,
+  Eye,
+  Video,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -27,17 +29,23 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts';
 import { format } from 'date-fns';
+
+const COLORS = ['hsl(262, 83%, 58%)', 'hsl(199, 89%, 48%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(0, 84%, 60%)', 'hsl(280, 65%, 60%)'];
+
+const formatNumber = (num: number) => {
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+  return num.toLocaleString();
+};
 
 const Analytics: React.FC = () => {
   const { role } = useAuth();
   const { data: stats } = useDashboardStats();
   const { data: chartData } = useChartData();
   const { data: activityLogs } = useActivityLogs();
-
-  const COLORS = ['hsl(262, 83%, 58%)', 'hsl(199, 89%, 48%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)'];
+  const { data: youtubeAnalytics } = useYouTubeAnalytics();
 
   // Only admins can access analytics
   if (role !== 'admin') {
@@ -60,19 +68,19 @@ const Analytics: React.FC = () => {
       <div>
         <h1 className="text-3xl font-display font-bold">Analytics Dashboard</h1>
         <p className="text-muted-foreground mt-1">
-          Track performance metrics and monitor your community's growth.
+          Real-time performance metrics from your YouTube channels and community.
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* YouTube Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="glass-card">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Users</p>
-                <p className="text-3xl font-bold mt-1">{stats?.totalUsers || 0}</p>
-                <p className="text-xs text-success mt-1">+12% from last month</p>
+                <p className="text-sm text-muted-foreground">Total Subscribers</p>
+                <p className="text-3xl font-bold mt-1">{formatNumber(youtubeAnalytics?.totalSubscribers || 0)}</p>
+                <p className="text-xs text-success mt-1">Across all channels</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Users className="w-6 h-6 text-primary" />
@@ -84,12 +92,12 @@ const Analytics: React.FC = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Active Channels</p>
-                <p className="text-3xl font-bold mt-1">{stats?.totalChannels || 0}</p>
-                <p className="text-xs text-success mt-1">+5 this week</p>
+                <p className="text-sm text-muted-foreground">Total Views</p>
+                <p className="text-3xl font-bold mt-1">{formatNumber(youtubeAnalytics?.totalViews || 0)}</p>
+                <p className="text-xs text-info mt-1">Lifetime views</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center">
-                <Youtube className="w-6 h-6 text-destructive" />
+              <div className="w-12 h-12 rounded-xl bg-info/10 flex items-center justify-center">
+                <Eye className="w-6 h-6 text-info" />
               </div>
             </div>
           </CardContent>
@@ -98,12 +106,26 @@ const Analytics: React.FC = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Weekly Messages</p>
-                <p className="text-3xl font-bold mt-1">{stats?.weeklyMessages || 0}</p>
-                <p className="text-xs text-info mt-1">Active conversations</p>
+                <p className="text-sm text-muted-foreground">Total Videos</p>
+                <p className="text-3xl font-bold mt-1">{formatNumber(youtubeAnalytics?.totalVideos || 0)}</p>
+                <p className="text-xs text-warning mt-1">Published content</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-info/10 flex items-center justify-center">
-                <MessageCircle className="w-6 h-6 text-info" />
+              <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
+                <Video className="w-6 h-6 text-warning" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Active Channels</p>
+                <p className="text-3xl font-bold mt-1">{youtubeAnalytics?.totalChannels || 0}</p>
+                <p className="text-xs text-success mt-1">{youtubeAnalytics?.totalCreators || 0} creators</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center">
+                <Youtube className="w-6 h-6 text-destructive" />
               </div>
             </div>
           </CardContent>
@@ -124,45 +146,48 @@ const Analytics: React.FC = () => {
         </Card>
       </div>
 
-      {/* YouTube Analytics Section */}
-      <YouTubeAnalyticsSection />
-
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upload Frequency Chart */}
+        {/* Channel Growth Chart */}
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-primary" />
-              Upload Frequency
+              Channel Growth (Last 7 Days)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData?.uploadFrequency || []}>
+                <AreaChart data={youtubeAnalytics?.channelGrowth || []}>
                   <defs>
-                    <linearGradient id="uploadGradient" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="subscriberGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(262, 83%, 58%)" stopOpacity={0.3} />
                       <stop offset="95%" stopColor="hsl(262, 83%, 58%)" stopOpacity={0} />
                     </linearGradient>
+                    <linearGradient id="viewsGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(199, 89%, 48%)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(199, 89%, 48%)" stopOpacity={0} />
+                    </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 16%, 16%)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 16%, 22%)" />
                   <XAxis dataKey="name" stroke="hsl(220, 10%, 55%)" fontSize={12} />
-                  <YAxis stroke="hsl(220, 10%, 55%)" fontSize={12} />
+                  <YAxis stroke="hsl(220, 10%, 55%)" fontSize={12} tickFormatter={(v) => formatNumber(v)} />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'hsl(220, 18%, 8%)',
-                      border: '1px solid hsl(220, 16%, 16%)',
+                      backgroundColor: 'hsl(220, 18%, 12%)',
+                      border: '1px solid hsl(220, 16%, 22%)',
                       borderRadius: '8px',
                     }}
+                    formatter={(value: number) => [formatNumber(value), '']}
                   />
                   <Area
                     type="monotone"
-                    dataKey="uploads"
+                    dataKey="subscribers"
                     stroke="hsl(262, 83%, 58%)"
                     strokeWidth={2}
-                    fill="url(#uploadGradient)"
+                    fill="url(#subscriberGradient)"
+                    name="Subscribers"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -170,30 +195,34 @@ const Analytics: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Channel Growth Chart */}
+        {/* Creator Performance Chart */}
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-primary" />
-              Channel Growth
+              Top Creator Performance
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData?.channelGrowth?.slice(-6) || []}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 16%, 16%)" />
-                  <XAxis dataKey="month" stroke="hsl(220, 10%, 55%)" fontSize={12} />
-                  <YAxis stroke="hsl(220, 10%, 55%)" fontSize={12} />
+                <BarChart data={youtubeAnalytics?.creatorPerformance || []}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 16%, 22%)" />
+                  <XAxis dataKey="name" stroke="hsl(220, 10%, 55%)" fontSize={12} />
+                  <YAxis stroke="hsl(220, 10%, 55%)" fontSize={12} tickFormatter={(v) => formatNumber(v)} />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'hsl(220, 18%, 8%)',
-                      border: '1px solid hsl(220, 16%, 16%)',
+                      backgroundColor: 'hsl(220, 18%, 12%)',
+                      border: '1px solid hsl(220, 16%, 22%)',
                       borderRadius: '8px',
                     }}
+                    formatter={(value: number, name: string) => [
+                      name === 'views' ? formatNumber(value * 1000) : formatNumber(value),
+                      name.charAt(0).toUpperCase() + name.slice(1)
+                    ]}
                   />
-                  <Bar dataKey="subscribers" fill="hsl(262, 83%, 58%)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="videos" fill="hsl(199, 89%, 48%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="subscribers" fill="hsl(262, 83%, 58%)" radius={[4, 4, 0, 0]} name="Subscribers" />
+                  <Bar dataKey="views" fill="hsl(199, 89%, 48%)" radius={[4, 4, 0, 0]} name="Views (K)" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -203,12 +232,12 @@ const Analytics: React.FC = () => {
 
       {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* User Contribution Pie Chart */}
+        {/* Channel Distribution Pie Chart */}
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="w-5 h-5 text-primary" />
-              User Contribution
+              Channel Distribution
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -216,50 +245,91 @@ const Analytics: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={chartData?.userContribution || []}
+                    data={youtubeAnalytics?.channelDistribution || []}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
                     outerRadius={80}
                     dataKey="value"
                     nameKey="name"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
                     labelLine={false}
                   >
-                    {chartData?.userContribution?.map((entry, index) => (
+                    {youtubeAnalytics?.channelDistribution?.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'hsl(220, 18%, 8%)',
-                      border: '1px solid hsl(220, 16%, 16%)',
+                      backgroundColor: 'hsl(220, 18%, 12%)',
+                      border: '1px solid hsl(220, 16%, 22%)',
                       borderRadius: '8px',
                     }}
+                    formatter={(value: number) => [formatNumber(value) + ' subs', '']}
                   />
                 </PieChart>
               </ResponsiveContainer>
             </div>
             <div className="flex flex-wrap gap-2 justify-center mt-4">
-              {chartData?.userContribution?.map((entry, index) => (
+              {youtubeAnalytics?.channelDistribution?.slice(0, 5).map((entry, index) => (
                 <div key={entry.name} className="flex items-center gap-2">
                   <div
                     className="w-3 h-3 rounded-full"
                     style={{ backgroundColor: COLORS[index % COLORS.length] }}
                   />
-                  <span className="text-sm text-muted-foreground">{entry.name}</span>
+                  <span className="text-xs text-muted-foreground truncate max-w-[80px]">{entry.name}</span>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* KYC Status */}
+        {/* Top Creators */}
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
-              KYC Status Overview
+              Top Creators
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {youtubeAnalytics?.creatorStats?.slice(0, 5).map((creator, index) => (
+                <div key={creator.user_id} className="flex items-center gap-3 p-2 rounded-lg bg-secondary/50">
+                  <span className="text-sm font-bold text-muted-foreground w-5">#{index + 1}</span>
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={creator.avatar_url || ''} />
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                      {creator.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{creator.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {creator.channels} channel{creator.channels !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-primary">{formatNumber(creator.subscribers)}</p>
+                    <p className="text-xs text-muted-foreground">subs</p>
+                  </div>
+                </div>
+              )) || (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No creators yet</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity / KYC Status */}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-primary" />
+              KYC & Activity
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -290,52 +360,73 @@ const Analytics: React.FC = () => {
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                    <Activity className="w-5 h-5 text-destructive" />
+                  <div className="w-10 h-10 rounded-full bg-info/10 flex items-center justify-center">
+                    <MessageCircle className="w-5 h-5 text-info" />
                   </div>
                   <div>
-                    <p className="font-medium">Rejected</p>
-                    <p className="text-sm text-muted-foreground">Not verified</p>
+                    <p className="font-medium">Weekly Messages</p>
+                    <p className="text-sm text-muted-foreground">Active chats</p>
                   </div>
                 </div>
-                <p className="text-2xl font-bold text-destructive">{stats?.kycStats?.rejected || 0}</p>
+                <p className="text-2xl font-bold text-info">{stats?.weeklyMessages || 0}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-
-        {/* Recent Activity */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-primary" />
-              Recent Activity
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {role === 'admin' && activityLogs && activityLogs.length > 0 ? (
-              <div className="space-y-3">
-                {activityLogs.slice(0, 5).map((log) => (
-                  <div key={log.id} className="flex items-start gap-3 p-2 rounded-lg bg-secondary/50">
-                    <div className="w-2 h-2 rounded-full bg-primary mt-2" />
-                    <div className="flex-1">
-                      <p className="text-sm">{log.action}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(new Date(log.created_at), 'MMM d, h:mm a')}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Activity className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No recent activity</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Top Channels Table */}
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Youtube className="w-5 h-5 text-destructive" />
+            Top Performing Channels
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Rank</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Channel</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Creator</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Subscribers</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Views</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Videos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {youtubeAnalytics?.topChannels?.map((channel, index) => (
+                  <tr key={channel.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
+                    <td className="py-3 px-4">
+                      <Badge variant={index < 3 ? 'default' : 'secondary'} className="w-8 justify-center">
+                        {index + 1}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        <Youtube className="w-4 h-4 text-destructive" />
+                        <span className="font-medium">{channel.channel_name}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-muted-foreground">{channel.creator_name}</td>
+                    <td className="py-3 px-4 text-right font-bold">{formatNumber(channel.subscriber_count || 0)}</td>
+                    <td className="py-3 px-4 text-right">{formatNumber(Number(channel.view_count) || 0)}</td>
+                    <td className="py-3 px-4 text-right">{channel.video_count || 0}</td>
+                  </tr>
+                )) || (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                      No channels registered yet
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
