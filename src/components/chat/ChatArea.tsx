@@ -3,7 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,14 +29,15 @@ import {
   Smile,
   ArrowLeft,
   Trash2,
-  Calendar,
+  CalendarIcon,
+  CheckSquare,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { isToday, isThisWeek, isThisMonth, parseISO } from 'date-fns';
+import { isWithinInterval, parseISO, format, startOfDay, endOfDay } from 'date-fns';
 import ChatMessage from './ChatMessage';
 import VoiceRecorder from './VoiceRecorder';
-
-type DateFilter = 'all' | 'today' | 'week' | 'month';
+import type { DateRange } from 'react-day-picker';
 
 interface Profile {
   user_id: string;
@@ -74,6 +77,7 @@ interface ChatAreaProps {
   onPlayAudio: (audioUrl: string, messageId: string) => void;
   onDeleteMessage: (messageId: string) => void;
   onDeleteAllMessages?: () => void;
+  onDeleteSelectedMessages?: (messageIds: string[]) => void;
   getSenderProfile: (senderId: string) => Profile | null | undefined;
   currentUserId: string | undefined;
   isAdmin: boolean;
@@ -96,6 +100,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   onPlayAudio,
   onDeleteMessage,
   onDeleteAllMessages,
+  onDeleteSelectedMessages,
   getSenderProfile,
   currentUserId,
   isAdmin,
@@ -104,7 +109,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -114,25 +121,61 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     scrollToBottom();
   }, [messages]);
 
-  // Filter messages by date
+  // Reset selection when room changes
+  useEffect(() => {
+    setSelectedMessageIds(new Set());
+    setIsSelectionMode(false);
+  }, [selectedRoom]);
+
+  // Filter messages by date range
   const filteredMessages = useMemo(() => {
     if (!messages) return [];
-    if (dateFilter === 'all') return messages;
+    if (!dateRange?.from) return messages;
 
     return messages.filter((message) => {
       const messageDate = parseISO(message.created_at);
-      switch (dateFilter) {
-        case 'today':
-          return isToday(messageDate);
-        case 'week':
-          return isThisWeek(messageDate);
-        case 'month':
-          return isThisMonth(messageDate);
-        default:
-          return true;
-      }
+      const start = startOfDay(dateRange.from!);
+      const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from!);
+      return isWithinInterval(messageDate, { start, end });
     });
-  }, [messages, dateFilter]);
+  }, [messages, dateRange]);
+
+  const handleToggleSelect = (messageId: string) => {
+    setSelectedMessageIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedMessageIds.size === filteredMessages.length) {
+      setSelectedMessageIds(new Set());
+    } else {
+      setSelectedMessageIds(new Set(filteredMessages.map((m) => m.id)));
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (onDeleteSelectedMessages && selectedMessageIds.size > 0) {
+      onDeleteSelectedMessages(Array.from(selectedMessageIds));
+      setSelectedMessageIds(new Set());
+      setIsSelectionMode(false);
+    }
+  };
+
+  const handleCancelSelection = () => {
+    setSelectedMessageIds(new Set());
+    setIsSelectionMode(false);
+  };
+
+  const clearDateRange = () => {
+    setDateRange(undefined);
+  };
 
   const getRoomIcon = (room: ChatRoom) => {
     if (room?.is_broadcast) return <Megaphone className="w-5 h-5" />;
@@ -242,20 +285,111 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           </div>
         </div>
         
-        {/* Date Filter Tabs */}
-        <div className="relative z-10 mt-4">
-          <Tabs value={dateFilter} onValueChange={(value) => setDateFilter(value as DateFilter)} className="w-full">
-            <TabsList className="w-full justify-start bg-secondary/30 p-1">
-              <TabsTrigger value="all" className="text-xs flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                All
-              </TabsTrigger>
-              <TabsTrigger value="today" className="text-xs">Today</TabsTrigger>
-              <TabsTrigger value="week" className="text-xs">This Week</TabsTrigger>
-              <TabsTrigger value="month" className="text-xs">This Month</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+        {/* Date Range Filter & Selection Mode - Admin Only */}
+        {isAdmin && (
+          <div className="relative z-10 mt-4 flex flex-wrap items-center gap-2">
+            {/* Date Range Picker */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 gap-2 text-xs">
+                  <CalendarIcon className="w-3.5 h-3.5" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      <>
+                        {format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d, yyyy')}
+                      </>
+                    ) : (
+                      format(dateRange.from, 'MMM d, yyyy')
+                    )
+                  ) : (
+                    'Filter by date'
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={isMobile ? 1 : 2}
+                />
+              </PopoverContent>
+            </Popover>
+
+            {dateRange?.from && (
+              <Button variant="ghost" size="sm" onClick={clearDateRange} className="h-9 px-2">
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            )}
+
+            {/* Selection Mode Toggle */}
+            <Button
+              variant={isSelectionMode ? 'secondary' : 'outline'}
+              size="sm"
+              className="h-9 gap-2 text-xs"
+              onClick={() => setIsSelectionMode(!isSelectionMode)}
+            >
+              <CheckSquare className="w-3.5 h-3.5" />
+              {isSelectionMode ? 'Cancel Selection' : 'Select Messages'}
+            </Button>
+
+            {/* Selection Actions */}
+            {isSelectionMode && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs"
+                  onClick={handleSelectAll}
+                >
+                  {selectedMessageIds.size === filteredMessages.length ? 'Deselect All' : 'Select All'}
+                </Button>
+
+                {selectedMessageIds.size > 0 && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="h-9 gap-2 text-xs"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Delete {selectedMessageIds.size} message{selectedMessageIds.size > 1 ? 's' : ''}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Selected Messages</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete {selectedMessageIds.size} selected message{selectedMessageIds.size > 1 ? 's' : ''}? 
+                          This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={handleDeleteSelected}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete Selected
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </>
+            )}
+
+            {/* Show selected count badge */}
+            {isSelectionMode && selectedMessageIds.size > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {selectedMessageIds.size} selected
+              </Badge>
+            )}
+          </div>
+        )}
       </CardHeader>
 
       {/* Messages */}
@@ -273,10 +407,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                   <MessageCircle className="w-10 h-10 text-primary/60" />
                 </div>
                 <h4 className="text-lg font-semibold mb-1">
-                  {messages?.length === 0 ? 'No messages yet' : 'No messages in this period'}
+                  {messages?.length === 0 ? 'No messages yet' : 'No messages in selected date range'}
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  {messages?.length === 0 ? 'Start the conversation!' : 'Try selecting a different date filter'}
+                  {messages?.length === 0 ? 'Start the conversation!' : 'Try selecting a different date range'}
                 </p>
               </div>
             ) : (
@@ -291,6 +425,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                     playingAudioId={playingAudioId}
                     onPlayAudio={onPlayAudio}
                     onDeleteMessage={onDeleteMessage}
+                    isSelectionMode={isSelectionMode}
+                    isSelected={selectedMessageIds.has(message.id)}
+                    onToggleSelect={handleToggleSelect}
                   />
                 ))}
                 <div ref={messagesEndRef} />
@@ -317,7 +454,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
               variant="ghost" 
               size="icon"
               onClick={() => fileInputRef.current?.click()}
-              title="Attach file"
+              title="Attach image"
               className="rounded-xl hover:bg-primary/10 hover:text-primary ml-1"
             >
               <Paperclip className="w-4 h-4" />

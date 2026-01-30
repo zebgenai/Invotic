@@ -1,6 +1,7 @@
 import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +40,9 @@ interface ChatMessageProps {
   playingAudioId: string | null;
   onPlayAudio: (audioUrl: string, messageId: string) => void;
   onDeleteMessage: (messageId: string) => void;
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (messageId: string) => void;
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({
@@ -49,14 +53,28 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   playingAudioId,
   onPlayAudio,
   onDeleteMessage,
+  isSelectionMode = false,
+  isSelected = false,
+  onToggleSelect,
 }) => {
   return (
     <div
       className={cn(
-        'flex gap-3 group animate-fade-in',
-        isOwn && 'flex-row-reverse'
+        'flex gap-3 group animate-fade-in items-start',
+        isOwn && 'flex-row-reverse',
+        isSelected && 'bg-primary/5 rounded-lg p-2 -m-2'
       )}
     >
+      {/* Selection checkbox */}
+      {isSelectionMode && isAdmin && (
+        <div className="flex items-center pt-2">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => onToggleSelect?.(message.id)}
+            className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+          />
+        </div>
+      )}
       <Avatar className={cn(
         'w-9 h-9 ring-2 ring-offset-2 ring-offset-background transition-all',
         isOwn ? 'ring-primary/30' : 'ring-secondary'

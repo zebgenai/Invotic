@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom, useDeleteMessage, useDeleteAllMessages } from '@/hooks/useChat';
+import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom, useDeleteMessage, useDeleteAllMessages, useDeleteSelectedMessages } from '@/hooks/useChat';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +19,7 @@ const Chat: React.FC = () => {
   const updateRoom = useUpdateChatRoom();
   const deleteMessage = useDeleteMessage();
   const deleteAllMessages = useDeleteAllMessages();
+  const deleteSelectedMessages = useDeleteSelectedMessages();
   const { toast } = useToast();
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -236,6 +237,23 @@ const Chat: React.FC = () => {
     }
   };
 
+  const handleDeleteSelectedMessages = async (messageIds: string[]) => {
+    if (!selectedRoom || messageIds.length === 0) return;
+    try {
+      await deleteSelectedMessages.mutateAsync({ messageIds, roomId: selectedRoom });
+      toast({
+        title: 'Messages deleted',
+        description: `${messageIds.length} message${messageIds.length > 1 ? 's have' : ' has'} been removed.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete selected messages.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getSenderProfile = (senderId: string) => {
     if (senderId === user?.id) return profile;
     return profiles?.find((p) => p.user_id === senderId);
@@ -298,6 +316,7 @@ const Chat: React.FC = () => {
             onPlayAudio={playAudio}
             onDeleteMessage={handleDeleteMessage}
             onDeleteAllMessages={handleDeleteAllMessages}
+            onDeleteSelectedMessages={handleDeleteSelectedMessages}
             getSenderProfile={getSenderProfile}
             currentUserId={user?.id}
             isAdmin={role === 'admin'}
@@ -347,6 +366,7 @@ const Chat: React.FC = () => {
         onPlayAudio={playAudio}
         onDeleteMessage={handleDeleteMessage}
         onDeleteAllMessages={handleDeleteAllMessages}
+        onDeleteSelectedMessages={handleDeleteSelectedMessages}
         getSenderProfile={getSenderProfile}
         currentUserId={user?.id}
         isAdmin={role === 'admin'}

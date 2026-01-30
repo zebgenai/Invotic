@@ -273,3 +273,22 @@ export const useDeleteAllMessages = () => {
     },
   });
 };
+
+export const useDeleteSelectedMessages = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ messageIds, roomId }: { messageIds: string[]; roomId: string }) => {
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .in('id', messageIds);
+
+      if (error) throw error;
+      return { roomId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['messages', data.roomId] });
+    },
+  });
+};
