@@ -4,69 +4,67 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Medal, Star, TrendingUp, Crown, Flame, Zap, Target } from 'lucide-react';
+import { Trophy, Medal, Star, TrendingUp, Crown, Flame, Zap, Target, Youtube, Eye, Users } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const Leaderboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
+  // Fetch YouTube channels with user profiles for leaderboard
   const { data: leaderboardData } = useQuery({
-    queryKey: ['leaderboard'],
+    queryKey: ['youtube-leaderboard'],
     queryFn: async () => {
-      const { data: points, error } = await supabase
-        .from('user_points')
+      // Get all YouTube channels
+      const { data: channels, error } = await supabase
+        .from('youtube_channels')
         .select('*')
-        .order('total_points', { ascending: false })
-        .limit(20);
+        .order('subscriber_count', { ascending: false });
 
       if (error) throw error;
 
+      // Get unique user IDs
+      const userIds = [...new Set(channels.map(c => c.user_id))];
+      
       // Get profiles for these users
-      const userIds = points.map(p => p.user_id);
       const { data: profiles } = await supabase
         .from('profiles')
         .select('*')
         .in('user_id', userIds);
 
-      return points.map((point, index) => ({
-        ...point,
-        rank: index + 1,
-        profile: profiles?.find(p => p.user_id === point.user_id),
-      }));
+      // Aggregate stats per user (sum all their channels)
+      const userStats = userIds.map(userId => {
+        const userChannels = channels.filter(c => c.user_id === userId);
+        const totalSubscribers = userChannels.reduce((sum, c) => sum + (c.subscriber_count || 0), 0);
+        const totalViews = userChannels.reduce((sum, c) => sum + (Number(c.view_count) || 0), 0);
+        const totalVideos = userChannels.reduce((sum, c) => sum + (c.video_count || 0), 0);
+        const profile = profiles?.find(p => p.user_id === userId);
+        
+        return {
+          user_id: userId,
+          profile,
+          channels: userChannels,
+          channel_count: userChannels.length,
+          total_subscribers: totalSubscribers,
+          total_views: totalViews,
+          total_videos: totalVideos,
+          // Score based on subscribers + views (views weighted less)
+          score: totalSubscribers + Math.floor(totalViews / 1000),
+        };
+      });
+
+      // Sort by score (subscribers + views)
+      return userStats
+        .sort((a, b) => b.score - a.score)
+        .map((entry, index) => ({
+          ...entry,
+          rank: index + 1,
+        }));
     },
     enabled: !!user,
   });
 
-  const { data: badges } = useQuery({
-    queryKey: ['badges'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('badges')
-        .select('*')
-        .order('points_required', { ascending: true });
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const { data: myPoints } = useQuery({
-    queryKey: ['my-points'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('user_points')
-        .select('*')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const myRank = leaderboardData?.findIndex(l => l.user_id === user?.id);
+  const myEntry = leaderboardData?.find(l => l.user_id === user?.id);
+  const myRank = myEntry?.rank;
 
   const getRankBadge = (rank: number) => {
     switch (rank) {
@@ -97,24 +95,19 @@ const Leaderboard: React.FC = () => {
     }
   };
 
-  const defaultBadges = [
-    { id: '1', name: 'First Upload', icon: '🎬', description: 'Uploaded your first video', points_required: 0 },
-    { id: '2', name: 'Rising Star', icon: '⭐', description: 'Reached 1,000 subscribers', points_required: 100 },
-    { id: '3', name: 'Consistent Creator', icon: '🔥', description: 'Posted 10 videos in a month', points_required: 250 },
-    { id: '4', name: 'Community Leader', icon: '👑', description: 'Helped 50 other creators', points_required: 500 },
-    { id: '5', name: 'Viral Hit', icon: '🚀', description: 'Video reached 100k views', points_required: 1000 },
-    { id: '6', name: 'Engagement Master', icon: '💬', description: '1000+ comments on content', points_required: 1500 },
-  ];
-
-  const displayBadges = badges?.length ? badges : defaultBadges;
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toLocaleString();
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-display font-bold">Leaderboard</h1>
+        <h1 className="text-3xl font-display font-bold">Channel Leaderboard</h1>
         <p className="text-muted-foreground mt-1">
-          Top creators in the community based on points and achievements.
+          Top creators ranked by YouTube channel performance (subscribers + views).
         </p>
       </div>
 
@@ -137,8 +130,8 @@ const Leaderboard: React.FC = () => {
                     <div className="absolute -bottom-1 -right-1 text-2xl">🥈</div>
                   </div>
                   <h3 className="font-medium truncate text-sm">{leaderboardData[1]?.profile?.full_name || 'User'}</h3>
-                  <p className="text-xl font-bold gradient-text">{leaderboardData[1]?.total_points?.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">points</p>
+                  <p className="text-lg font-bold text-primary">{formatNumber(leaderboardData[1]?.total_subscribers)}</p>
+                  <p className="text-xs text-muted-foreground">subscribers</p>
                 </CardContent>
               </Card>
 
@@ -159,8 +152,8 @@ const Leaderboard: React.FC = () => {
                     <div className="absolute -bottom-1 -right-1 text-3xl">🥇</div>
                   </div>
                   <h3 className="font-semibold truncate">{leaderboardData[0]?.profile?.full_name || 'User'}</h3>
-                  <p className="text-2xl font-bold gradient-text">{leaderboardData[0]?.total_points?.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">points</p>
+                  <p className="text-2xl font-bold gradient-text">{formatNumber(leaderboardData[0]?.total_subscribers)}</p>
+                  <p className="text-xs text-muted-foreground">subscribers</p>
                 </CardContent>
               </Card>
 
@@ -177,8 +170,8 @@ const Leaderboard: React.FC = () => {
                     <div className="absolute -bottom-1 -right-1 text-2xl">🥉</div>
                   </div>
                   <h3 className="font-medium truncate text-sm">{leaderboardData[2]?.profile?.full_name || 'User'}</h3>
-                  <p className="text-xl font-bold gradient-text">{leaderboardData[2]?.total_points?.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">points</p>
+                  <p className="text-lg font-bold text-primary">{formatNumber(leaderboardData[2]?.total_subscribers)}</p>
+                  <p className="text-xs text-muted-foreground">subscribers</p>
                 </CardContent>
               </Card>
             </div>
@@ -196,7 +189,7 @@ const Leaderboard: React.FC = () => {
               <div className="space-y-3">
                 {leaderboardData?.map((entry) => (
                   <div
-                    key={entry.id}
+                    key={entry.user_id}
                     className={`flex items-center gap-4 p-3 rounded-lg transition-colors ${
                       entry.user_id === user?.id
                         ? 'bg-primary/10 border border-primary/30'
@@ -210,26 +203,37 @@ const Leaderboard: React.FC = () => {
                         {entry.profile?.full_name?.charAt(0) || 'U'}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex-1">
-                      <p className="font-medium">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">
                         {entry.profile?.full_name || 'Unknown User'}
                         {entry.user_id === user?.id && (
                           <span className="text-primary text-sm ml-2">(You)</span>
                         )}
                       </p>
-                      <div className="flex items-center gap-2">
-                        <Star className="w-3 h-3 text-yellow-500" />
-                        <span className="text-sm text-muted-foreground">Level {Math.floor(entry.total_points / 500) + 1}</span>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Youtube className="w-3 h-3" />
+                          {entry.channel_count} channel{entry.channel_count !== 1 ? 's' : ''}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Eye className="w-3 h-3" />
+                          {formatNumber(entry.total_views)} views
+                        </span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-lg">{entry.total_points.toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground">points</p>
+                      <p className="font-bold text-lg flex items-center gap-1">
+                        <Users className="w-4 h-4 text-primary" />
+                        {formatNumber(entry.total_subscribers)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">subscribers</p>
                     </div>
                   </div>
                 )) || (
                   <div className="text-center py-8 text-muted-foreground">
-                    No leaderboard data yet. Start earning points!
+                    <Youtube className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No channels registered yet.</p>
+                    <p className="text-sm">Add your YouTube channel to appear on the leaderboard!</p>
                   </div>
                 )}
               </div>
@@ -252,93 +256,99 @@ const Leaderboard: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Current Rank</span>
                 <Badge className="badge-info">
-                  #{myRank !== undefined && myRank >= 0 ? myRank + 1 : 'N/A'}
+                  #{myRank || 'N/A'}
                 </Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Total Points</span>
-                <span className="font-bold text-xl">{myPoints?.total_points?.toLocaleString() || 0}</span>
+                <span className="text-muted-foreground">Channels</span>
+                <span className="font-bold text-xl">{myEntry?.channel_count || 0}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Level</span>
-                <div className="flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-orange-500" />
-                  <span className="font-bold">Level {Math.floor((myPoints?.total_points || 0) / 500) + 1}</span>
-                </div>
+                <span className="text-muted-foreground">Total Subscribers</span>
+                <span className="font-bold text-xl text-primary">{formatNumber(myEntry?.total_subscribers || 0)}</span>
               </div>
-              <div className="pt-4 border-t border-border">
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-muted-foreground">Next Level Progress</span>
-                  <span className="text-primary">{((myPoints?.total_points || 0) % 500) / 5}%</span>
-                </div>
-                <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500"
-                    style={{ width: `${((myPoints?.total_points || 0) % 500) / 5}%` }}
-                  />
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Total Views</span>
+                <span className="font-bold">{formatNumber(myEntry?.total_views || 0)}</span>
               </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Total Videos</span>
+                <span className="font-bold">{myEntry?.total_videos || 0}</span>
+              </div>
+              {!myEntry && (
+                <div className="pt-4 border-t border-border text-center">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Add your YouTube channel to start competing!
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Available Badges */}
+          {/* Top Channels */}
           <Card className="glass-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-primary" />
-                Badges to Earn
+                Top Channels
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {displayBadges.map((badge) => (
-                  <div
-                    key={badge.id}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
-                  >
-                    <span className="text-2xl">{badge.icon}</span>
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{badge.name}</p>
-                      <p className="text-xs text-muted-foreground">{badge.description}</p>
+                {leaderboardData?.slice(0, 5).flatMap(entry => 
+                  entry.channels.slice(0, 1).map(channel => (
+                    <div
+                      key={channel.id}
+                      className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                        <Youtube className="w-5 h-5 text-destructive" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{channel.channel_name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{channel.creator_name}</p>
+                      </div>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {formatNumber(channel.subscriber_count || 0)} subs
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {badge.points_required} pts
-                    </Badge>
-                  </div>
-                ))}
+                  ))
+                ) || (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No channels yet
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* How to Earn Points */}
+          {/* How to Climb */}
           <Card className="glass-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Target className="w-5 h-5 text-primary" />
-                Earn Points
+                How to Climb
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Complete a task</span>
-                  <span className="font-medium text-success">+50 pts</span>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-xs font-bold text-primary">1</span>
+                  </div>
+                  <p className="text-muted-foreground">Add your YouTube channel to the Channel Store</p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Upload a video</span>
-                  <span className="font-medium text-success">+25 pts</span>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-xs font-bold text-primary">2</span>
+                  </div>
+                  <p className="text-muted-foreground">Grow your subscribers and views</p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Help a creator</span>
-                  <span className="font-medium text-success">+15 pts</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Forum reply</span>
-                  <span className="font-medium text-success">+10 pts</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Daily login</span>
-                  <span className="font-medium text-success">+5 pts</span>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-xs font-bold text-primary">3</span>
+                  </div>
+                  <p className="text-muted-foreground">Stats refresh automatically to update your rank</p>
                 </div>
               </div>
             </CardContent>
