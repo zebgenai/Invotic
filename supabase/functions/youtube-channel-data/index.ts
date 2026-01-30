@@ -4,7 +4,7 @@ const corsHeaders = {
 };
 
 // Extract channel ID from various YouTube URL formats
-function extractChannelId(url: string): { type: 'channel' | 'handle' | 'user' | 'custom'; value: string } | null {
+function extractChannelId(url: string): { type: 'channel' | 'handle' | 'user' | 'custom' | 'video'; value: string } | null {
   const patterns = [
     // Channel ID format: youtube.com/channel/UC...
     { regex: /youtube\.com\/channel\/(UC[\w-]+)/i, type: 'channel' as const },
@@ -14,6 +14,10 @@ function extractChannelId(url: string): { type: 'channel' | 'handle' | 'user' | 
     { regex: /youtube\.com\/user\/([\w-]+)/i, type: 'user' as const },
     // Custom URL format: youtube.com/c/customname
     { regex: /youtube\.com\/c\/([\w-]+)/i, type: 'custom' as const },
+    // Video URL format: youtube.com/watch?v=VIDEO_ID
+    { regex: /youtube\.com\/watch\?v=([\w-]+)/i, type: 'video' as const },
+    // Short video URL format: youtu.be/VIDEO_ID
+    { regex: /youtu\.be\/([\w-]+)/i, type: 'video' as const },
     // Direct custom URL: youtube.com/customname (fallback)
     { regex: /youtube\.com\/([\w-]+)$/i, type: 'custom' as const },
   ];
@@ -26,6 +30,20 @@ function extractChannelId(url: string): { type: 'channel' | 'handle' | 'user' | 
   }
 
   return null;
+}
+
+// Get channel ID from a video ID
+async function getChannelFromVideo(apiKey: string, videoId: string): Promise<string | null> {
+  const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${apiKey}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  
+  if (!response.ok || !data.items?.length) {
+    console.error('Failed to get video details:', data);
+    return null;
+  }
+  
+  return data.items[0].snippet?.channelId || null;
 }
 
 // Fetch channel data from YouTube Data API
@@ -193,6 +211,18 @@ Deno.serve(async (req) => {
     if (extracted.type === 'channel') {
       // Direct channel ID
       channelId = extracted.value;
+    } else if (extracted.type === 'video') {
+      // Video URL - extract channel from video
+      const resolvedId = await getChannelFromVideo(apiKey, extracted.value);
+      
+      if (!resolvedId) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Could not find channel from video. Please try using the channel URL instead.' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      channelId = resolvedId;
     } else {
       // Need to resolve handle/user/custom to channel ID
       const resolvedId = await resolveToChannelId(apiKey, extracted.value, extracted.type);
