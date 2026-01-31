@@ -389,12 +389,15 @@ const TeamManagement: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Assign Channel</label>
-                <Select value={newTeamChannelId} onValueChange={setNewTeamChannelId}>
+                <Select 
+                  value={newTeamChannelId || "none"} 
+                  onValueChange={(value) => setNewTeamChannelId(value === "none" ? "" : value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a channel to manage..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No channel assigned</SelectItem>
+                    <SelectItem value="none">No channel assigned</SelectItem>
                     {channels?.map((channel) => (
                       <SelectItem key={channel.id} value={channel.id}>
                         <div className="flex items-center gap-2">
@@ -564,16 +567,16 @@ const TeamManagement: React.FC = () => {
                           <div className="space-y-2">
                             <label className="text-sm font-medium">Assign Channel</label>
                             <Select 
-                              value={editingTeam?.channel_id || ''} 
+                              value={editingTeam?.channel_id || "none"} 
                               onValueChange={(value) => setEditingTeam(prev => 
-                                prev ? { ...prev, channel_id: value || null } : null
+                                prev ? { ...prev, channel_id: value === "none" ? null : value } : null
                               )}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Select a channel..." />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">No channel assigned</SelectItem>
+                                <SelectItem value="none">No channel assigned</SelectItem>
                                 {channels?.map((ch) => (
                                   <SelectItem key={ch.id} value={ch.id}>
                                     <div className="flex items-center gap-2">
