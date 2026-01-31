@@ -530,3 +530,40 @@ export const useAllProfiles = () => {
     enabled: !!user && (role === 'admin' || role === 'manager'),
   });
 };
+
+// Hook to delete a chat room (only for admins/managers)
+export const useDeleteChatRoom = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ roomId }: { roomId: string }) => {
+      // First delete all messages in the room
+      const { error: messagesError } = await supabase
+        .from('messages')
+        .delete()
+        .eq('room_id', roomId);
+
+      if (messagesError) throw messagesError;
+
+      // Delete all room members
+      const { error: membersError } = await supabase
+        .from('chat_room_members')
+        .delete()
+        .eq('room_id', roomId);
+
+      if (membersError) throw membersError;
+
+      // Finally delete the room
+      const { error: roomError } = await supabase
+        .from('chat_rooms')
+        .delete()
+        .eq('id', roomId);
+
+      if (roomError) throw roomError;
+      return { roomId };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
+    },
+  });
+};
