@@ -43,6 +43,7 @@ interface ChatMessageProps {
   isSelectionMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: (messageId: string) => void;
+  canDeleteOwn?: boolean;
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({
@@ -56,7 +57,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   isSelectionMode = false,
   isSelected = false,
   onToggleSelect,
+  canDeleteOwn = true,
 }) => {
+  // User can delete if: they own the message OR they are admin
+  const canDelete = isOwn || isAdmin;
+
   return (
     <div
       className={cn(
@@ -202,14 +207,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           </div>
         </div>
         
-        {/* Delete button - Admin only */}
-        {isAdmin && (
+        {/* Delete button - User can delete own messages, Admin can delete any */}
+        {canDelete && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-all text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
+                title={isOwn ? "Delete for everyone" : "Delete message"}
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>
@@ -218,7 +224,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete Message</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to delete this message? This action cannot be undone.
+                  {isOwn 
+                    ? "This message will be deleted for everyone in this chat. This action cannot be undone."
+                    : "Are you sure you want to delete this message? This action cannot be undone."
+                  }
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -227,7 +236,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                   onClick={() => onDeleteMessage(message.id)}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  Delete
+                  {isOwn ? "Delete for Everyone" : "Delete"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

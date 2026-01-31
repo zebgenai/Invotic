@@ -346,6 +346,25 @@ const Chat: React.FC = () => {
             onBack={handleBackToRooms}
           />
         )}
+
+        {/* Image Cropper Dialog for Mobile */}
+        {imagePreviewUrl && (
+          <ImageCropper
+            open={showImageCropper}
+            onClose={() => {
+              setShowImageCropper(false);
+              if (imagePreviewUrl) {
+                URL.revokeObjectURL(imagePreviewUrl);
+                setImagePreviewUrl(null);
+              }
+              setPendingImageFile(null);
+            }}
+            imageSrc={imagePreviewUrl}
+            onCropComplete={handleImageCropComplete}
+            title="Crop Image"
+            description="Adjust the crop area before sending"
+          />
+        )}
       </div>
     );
   }

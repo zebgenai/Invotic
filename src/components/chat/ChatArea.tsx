@@ -36,6 +36,7 @@ import {
 import { cn } from '@/lib/utils';
 import { isWithinInterval, parseISO, format, startOfDay, endOfDay } from 'date-fns';
 import ChatMessage from './ChatMessage';
+import ChatMembersDialog from './ChatMembersDialog';
 import VoiceRecorder from './VoiceRecorder';
 import type { DateRange } from 'react-day-picker';
 
@@ -60,6 +61,7 @@ interface ChatRoom {
   name: string | null;
   is_group: boolean;
   is_broadcast: boolean;
+  created_by: string;
 }
 
 interface ChatAreaProps {
@@ -112,6 +114,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
+  const [showMembersDialog, setShowMembersDialog] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -279,7 +282,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            <Button variant="ghost" size="icon" className="rounded-xl hover:bg-primary/10 hover:text-primary">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="rounded-xl hover:bg-primary/10 hover:text-primary"
+              onClick={() => setShowMembersDialog(true)}
+              title="Manage members"
+            >
               <Users className="w-4 h-4" />
             </Button>
           </div>
@@ -504,6 +513,19 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           </Button>
         </form>
       </div>
+
+      {/* Members Dialog */}
+      {selectedRoomData && (
+        <ChatMembersDialog
+          open={showMembersDialog}
+          onClose={() => setShowMembersDialog(false)}
+          roomId={selectedRoom}
+          roomName={selectedRoomData.name || 'Private Chat'}
+          roomCreatorId={selectedRoomData.created_by || ''}
+          currentUserId={currentUserId}
+          isAdmin={isAdmin}
+        />
+      )}
     </Card>
   );
 };

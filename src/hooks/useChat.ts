@@ -292,3 +292,91 @@ export const useDeleteSelectedMessages = () => {
     },
   });
 };
+
+// Hook to get chat room members
+export const useChatRoomMembers = (roomId: string | null) => {
+  return useQuery({
+    queryKey: ['chat-room-members', roomId],
+    queryFn: async () => {
+      if (!roomId) return [];
+      
+      const { data, error } = await supabase
+        .from('chat_room_members')
+        .select(`
+          *,
+          profiles:user_id (
+            user_id,
+            full_name,
+            avatar_url,
+            email
+          )
+        `)
+        .eq('room_id', roomId);
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!roomId,
+  });
+};
+
+// Hook to add a member to a chat room
+export const useAddChatRoomMember = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      roomId, 
+      userId, 
+      canPost = true 
+    }: { 
+      roomId: string; 
+      userId: string; 
+      canPost?: boolean;
+    }) => {
+      const { data, error } = await supabase
+        .from('chat_room_members')
+        .insert({
+          room_id: roomId,
+          user_id: userId,
+          can_post: canPost,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['chat-room-members', variables.roomId] });
+      queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
+    },
+  });
+};
+
+// Hook to remove a member from a chat room
+export const useRemoveChatRoomMember = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      roomId, 
+      memberId 
+    }: { 
+      roomId: string; 
+      memberId: string;
+    }) => {
+      const { error } = await supabase
+        .from('chat_room_members')
+        .delete()
+        .eq('id', memberId);
+
+      if (error) throw error;
+      return { roomId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['chat-room-members', data.roomId] });
+      queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
+    },
+  });
+};
