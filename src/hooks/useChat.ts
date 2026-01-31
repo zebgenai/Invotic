@@ -420,3 +420,113 @@ export const useRemoveChatRoomMember = () => {
     },
   });
 };
+
+// Hook to edit a message
+export const useEditMessage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ messageId, content, roomId }: { messageId: string; content: string; roomId: string }) => {
+      const { error } = await supabase
+        .from('messages')
+        .update({ 
+          content,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', messageId);
+
+      if (error) throw error;
+      return { roomId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['messages', data.roomId] });
+    },
+  });
+};
+
+// Hook to create or find an existing private chat between two users
+export const useCreatePrivateChat = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ targetUserId, targetUserName }: { targetUserId: string; targetUserName: string }) => {
+      // Check if a private room already exists between these users
+      const { data: existingRooms, error: fetchError } = await supabase
+        .from('chat_rooms')
+        .select(`
+          id,
+          name,
+          is_group,
+          is_broadcast,
+          chat_room_members!inner(user_id)
+        `)
+        .eq('is_group', false)
+        .eq('is_broadcast', false);
+
+      if (fetchError) throw fetchError;
+
+      // Find a room that has exactly both users
+      const existingPrivateRoom = existingRooms?.find(room => {
+        const memberIds = room.chat_room_members.map((m: any) => m.user_id);
+        return memberIds.length === 2 && 
+               memberIds.includes(user?.id) && 
+               memberIds.includes(targetUserId);
+      });
+
+      if (existingPrivateRoom) {
+        return existingPrivateRoom;
+      }
+
+      // Create new private room
+      const { data: room, error: roomError } = await supabase
+        .from('chat_rooms')
+        .insert({
+          name: targetUserName,
+          is_group: false,
+          is_broadcast: false,
+          is_public: false,
+          created_by: user?.id,
+        })
+        .select()
+        .single();
+
+      if (roomError) throw roomError;
+
+      // Add both users as members
+      const membersToAdd = [
+        { room_id: room.id, user_id: user?.id, can_post: true },
+        { room_id: room.id, user_id: targetUserId, can_post: true }
+      ];
+
+      for (const member of membersToAdd) {
+        await supabase.from('chat_room_members').insert(member);
+      }
+
+      return room;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
+    },
+  });
+};
+
+// Hook to get all profiles for DM selection (for admins/managers)
+export const useAllProfiles = () => {
+  const { user, role } = useAuth();
+
+  return useQuery({
+    queryKey: ['all-profiles-for-dm'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, avatar_url, email')
+        .neq('user_id', user?.id || '')
+        .order('full_name');
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user && (role === 'admin' || role === 'manager'),
+  });
+};

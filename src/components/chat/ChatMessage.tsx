@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,7 +14,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Play, Pause, Trash2, CheckCheck, Download } from 'lucide-react';
+import { Play, Pause, Trash2, CheckCheck, Download, Pencil, X, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +28,7 @@ interface Message {
   content: string | null;
   sender_id: string;
   created_at: string;
+  updated_at?: string;
   file_url: string | null;
   file_type: string | null;
   is_read: boolean;
@@ -41,6 +43,7 @@ interface ChatMessageProps {
   onPlayAudio: (audioUrl: string, messageId: string) => void;
   onDeleteMessage: (messageId: string) => void;
   onDeleteForMe: (messageId: string) => void;
+  onEditMessage?: (messageId: string, newContent: string) => void;
   isSelectionMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: (messageId: string) => void;
@@ -56,13 +59,42 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   onPlayAudio,
   onDeleteMessage,
   onDeleteForMe,
+  onEditMessage,
   isSelectionMode = false,
   isSelected = false,
   onToggleSelect,
   canDeleteOwn = true,
 }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(message.content || '');
+
   // User can delete for everyone if: they own the message OR they are admin
   const canDeleteForEveryone = isOwn || isAdmin;
+  // Only message owner can edit their own text messages
+  const canEdit = isOwn && !message.file_type && onEditMessage;
+
+  const handleSaveEdit = () => {
+    if (editContent.trim() && onEditMessage) {
+      onEditMessage(message.id, editContent.trim());
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditContent(message.content || '');
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSaveEdit();
+    } else if (e.key === 'Escape') {
+      handleCancelEdit();
+    }
+  };
+
+  const isEdited = message.updated_at && message.updated_at !== message.created_at;
 
   return (
     <div
@@ -188,7 +220,45 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
             </div>
           )}
 
-          <p className="text-sm whitespace-pre-wrap relative z-10">{message.content}</p>
+          {/* Message content - editable or display */}
+          {isEditing ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className={cn(
+                  "flex-1 h-8 text-sm border-0 bg-white/20 focus-visible:ring-1",
+                  isOwn ? "text-primary-foreground placeholder:text-white/50" : ""
+                )}
+                autoFocus
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "h-7 w-7 rounded-full",
+                  isOwn ? "hover:bg-white/20 text-white" : "hover:bg-primary/20 text-primary"
+                )}
+                onClick={handleSaveEdit}
+              >
+                <Check className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "h-7 w-7 rounded-full",
+                  isOwn ? "hover:bg-white/20 text-white" : "hover:bg-muted text-muted-foreground"
+                )}
+                onClick={handleCancelEdit}
+              >
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm whitespace-pre-wrap relative z-10">{message.content}</p>
+          )}
           
           <div className={cn(
             'flex items-center gap-1.5 mt-1.5',
@@ -199,6 +269,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
               isOwn ? 'text-white/60' : 'text-muted-foreground'
             )}>
               {format(new Date(message.created_at), 'h:mm a')}
+              {isEdited && ' • edited'}
             </span>
             {isOwn && (
               <CheckCheck className={cn(
@@ -209,44 +280,63 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           </div>
         </div>
         
-        {/* Delete button with dropdown for options */}
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
+        {/* Action buttons */}
+        <div className={cn(
+          "flex gap-0.5 opacity-0 group-hover:opacity-100 transition-all",
+          isOwn ? "flex-row-reverse" : ""
+        )}>
+          {/* Edit button - only for own text messages */}
+          {canEdit && !isEditing && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-all text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
-              title="Delete message"
+              className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+              title="Edit message"
+              onClick={() => setIsEditing(true)}
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Pencil className="w-3.5 h-3.5" />
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent className="glass-card">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Message</AlertDialogTitle>
-              <AlertDialogDescription>
-                How would you like to delete this message?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
-              <AlertDialogAction
-                onClick={() => onDeleteForMe(message.id)}
-                className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80"
+          )}
+
+          {/* Delete button with dropdown for options */}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
+                title="Delete message"
               >
-                Delete for Me
-              </AlertDialogAction>
-              {canDeleteForEveryone && (
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="glass-card">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Message</AlertDialogTitle>
+                <AlertDialogDescription>
+                  How would you like to delete this message?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
                 <AlertDialogAction
-                  onClick={() => onDeleteMessage(message.id)}
-                  className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => onDeleteForMe(message.id)}
+                  className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80"
                 >
-                  Delete for Everyone
+                  Delete for Me
                 </AlertDialogAction>
-              )}
-              <AlertDialogCancel className="w-full mt-0">Cancel</AlertDialogCancel>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+                {canDeleteForEveryone && (
+                  <AlertDialogAction
+                    onClick={() => onDeleteMessage(message.id)}
+                    className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete for Everyone
+                  </AlertDialogAction>
+                )}
+                <AlertDialogCancel className="w-full mt-0">Cancel</AlertDialogCancel>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
     </div>
   );

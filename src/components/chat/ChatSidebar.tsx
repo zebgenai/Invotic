@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ import {
   Search,
   Globe,
   Sparkles,
+  UserPlus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +32,13 @@ interface ChatRoom {
   is_group: boolean;
   is_broadcast: boolean;
   is_public?: boolean;
+}
+
+interface UserProfile {
+  user_id: string;
+  full_name: string;
+  avatar_url: string | null;
+  email: string;
 }
 
 interface ChatSidebarProps {
@@ -51,6 +60,9 @@ interface ChatSidebarProps {
   createRoomPending: boolean;
   canCreateRoom: boolean;
   isMobile?: boolean;
+  // New props for DM
+  allProfiles?: UserProfile[];
+  onStartDirectChat?: (userId: string, userName: string) => void;
 }
 
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -72,7 +84,12 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   createRoomPending,
   canCreateRoom,
   isMobile = false,
+  allProfiles,
+  onStartDirectChat,
 }) => {
+  const [isDMDialogOpen, setIsDMDialogOpen] = useState(false);
+  const [dmSearchQuery, setDmSearchQuery] = useState('');
+
   const getRoomIcon = (room: ChatRoom) => {
     if (room?.is_broadcast) return <Megaphone className="w-4 h-4" />;
     if (room?.is_group) return <Hash className="w-4 h-4" />;
@@ -82,6 +99,19 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   const filteredRooms = rooms?.filter((room) =>
     room.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const filteredProfiles = allProfiles?.filter((profile) =>
+    profile.full_name.toLowerCase().includes(dmSearchQuery.toLowerCase()) ||
+    profile.email.toLowerCase().includes(dmSearchQuery.toLowerCase())
+  );
+
+  const handleSelectUser = (userId: string, userName: string) => {
+    if (onStartDirectChat) {
+      onStartDirectChat(userId, userName);
+      setIsDMDialogOpen(false);
+      setDmSearchQuery('');
+    }
+  };
 
   return (
     <Card className={cn(
@@ -99,7 +129,66 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               </div>
               <CardTitle className="text-lg font-display">Messages</CardTitle>
             </div>
-            {canCreateRoom && (
+            <div className="flex items-center gap-1">
+              {/* New DM Button - for admin/manager */}
+              {canCreateRoom && onStartDirectChat && allProfiles && (
+                <Dialog open={isDMDialogOpen} onOpenChange={setIsDMDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      title="Start Direct Message"
+                      className="hover:bg-primary/10 hover:text-primary transition-colors"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="glass-card border-primary/20">
+                    <DialogHeader>
+                      <DialogTitle className="font-display">Start Direct Message</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search users..."
+                          className="pl-9 input-glow"
+                          value={dmSearchQuery}
+                          onChange={(e) => setDmSearchQuery(e.target.value)}
+                        />
+                      </div>
+                      <ScrollArea className="h-64">
+                        <div className="space-y-1">
+                          {filteredProfiles?.map((profile) => (
+                            <button
+                              key={profile.user_id}
+                              onClick={() => handleSelectUser(profile.user_id, profile.full_name)}
+                              className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/80 transition-all text-left"
+                            >
+                              <Avatar className="w-10 h-10">
+                                <AvatarImage src={profile.avatar_url || ''} />
+                                <AvatarFallback className="bg-primary/10 text-primary">
+                                  {profile.full_name.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{profile.full_name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
+                              </div>
+                            </button>
+                          ))}
+                          {filteredProfiles?.length === 0 && (
+                            <p className="text-center text-sm text-muted-foreground py-8">
+                              No users found
+                            </p>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+              {canCreateRoom && (
               <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                 <DialogTrigger asChild>
                   <Button 
@@ -176,6 +265,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 </DialogContent>
               </Dialog>
             )}
+            </div>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

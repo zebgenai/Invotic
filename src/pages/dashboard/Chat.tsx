@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom, useDeleteMessage, useDeleteMessageForMe, useDeleteAllMessages, useDeleteSelectedMessages } from '@/hooks/useChat';
+import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom, useDeleteMessage, useDeleteMessageForMe, useDeleteAllMessages, useDeleteSelectedMessages, useEditMessage, useCreatePrivateChat, useAllProfiles } from '@/hooks/useChat';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +22,9 @@ const Chat: React.FC = () => {
   const deleteMessageForMe = useDeleteMessageForMe();
   const deleteAllMessages = useDeleteAllMessages();
   const deleteSelectedMessages = useDeleteSelectedMessages();
+  const editMessage = useEditMessage();
+  const createPrivateChat = useCreatePrivateChat();
+  const { data: allProfiles } = useAllProfiles();
   const { toast } = useToast();
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -294,6 +297,40 @@ const Chat: React.FC = () => {
     }
   };
 
+  const handleEditMessage = async (messageId: string, newContent: string) => {
+    if (!selectedRoom) return;
+    try {
+      await editMessage.mutateAsync({ messageId, content: newContent, roomId: selectedRoom });
+      toast({
+        title: 'Message updated',
+        description: 'Your message has been edited.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to edit message.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleStartDirectChat = async (targetUserId: string, targetUserName: string) => {
+    try {
+      const room = await createPrivateChat.mutateAsync({ targetUserId, targetUserName });
+      setSelectedRoom(room.id);
+      toast({
+        title: 'Chat opened',
+        description: `Started conversation with ${targetUserName}`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to start conversation.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getSenderProfile = (senderId: string) => {
     if (senderId === user?.id) return profile;
     return profiles?.find((p) => p.user_id === senderId);
@@ -339,6 +376,8 @@ const Chat: React.FC = () => {
             createRoomPending={createRoom.isPending}
             canCreateRoom={role === 'admin' || role === 'manager'}
             isMobile={true}
+            allProfiles={allProfiles}
+            onStartDirectChat={handleStartDirectChat}
           />
         ) : (
           <ChatArea
@@ -356,6 +395,7 @@ const Chat: React.FC = () => {
             onPlayAudio={playAudio}
             onDeleteMessage={handleDeleteMessage}
             onDeleteForMe={handleDeleteForMe}
+            onEditMessage={handleEditMessage}
             onDeleteAllMessages={handleDeleteAllMessages}
             onDeleteSelectedMessages={handleDeleteSelectedMessages}
             getSenderProfile={getSenderProfile}
@@ -409,6 +449,8 @@ const Chat: React.FC = () => {
         handleCreateRoom={handleCreateRoom}
         createRoomPending={createRoom.isPending}
         canCreateRoom={role === 'admin' || role === 'manager'}
+        allProfiles={allProfiles}
+        onStartDirectChat={handleStartDirectChat}
       />
 
       <ChatArea
@@ -426,6 +468,7 @@ const Chat: React.FC = () => {
         onPlayAudio={playAudio}
         onDeleteMessage={handleDeleteMessage}
         onDeleteForMe={handleDeleteForMe}
+        onEditMessage={handleEditMessage}
         onDeleteAllMessages={handleDeleteAllMessages}
         onDeleteSelectedMessages={handleDeleteSelectedMessages}
         getSenderProfile={getSenderProfile}
