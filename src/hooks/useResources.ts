@@ -51,6 +51,39 @@ export const useCreateResource = () => {
   });
 };
 
+export const useUpdateResource = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      id, 
+      title, 
+      description, 
+      file_url, 
+      file_type 
+    }: { 
+      id: string;
+      title: string;
+      description?: string;
+      file_url: string;
+      file_type: string;
+    }) => {
+      const { data, error } = await supabase
+        .from('resources')
+        .update({ title, description, file_url, file_type })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resources'] });
+    },
+  });
+};
+
 export const useDeleteResource = () => {
   const queryClient = useQueryClient();
 

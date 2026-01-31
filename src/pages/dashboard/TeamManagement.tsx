@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -36,16 +37,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Plus, Trash2, UserPlus, UserMinus, Edit, Search } from 'lucide-react';
+import { Users, Plus, Trash2, UserPlus, UserMinus, Edit, Search, CheckSquare } from 'lucide-react';
 import { format } from 'date-fns';
 
 const TeamManagement: React.FC = () => {
@@ -63,9 +57,10 @@ const TeamManagement: React.FC = () => {
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamDescription, setNewTeamDescription] = useState('');
   const [editingTeam, setEditingTeam] = useState<{ id: string; name: string; description: string } | null>(null);
-  const [selectedTeamForMembers, setSelectedTeamForMembers] = useState<string | null>(null);
-  const [selectedUserToAdd, setSelectedUserToAdd] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [selectedUsersToAdd, setSelectedUsersToAdd] = useState<string[]>([]);
+  const [addMembersDialogOpen, setAddMembersDialogOpen] = useState<string | null>(null);
 
   const isAdmin = role === 'admin';
 
@@ -83,6 +78,15 @@ const TeamManagement: React.FC = () => {
       !currentMemberIds.includes(p.user_id) &&
       p.kyc_status === 'approved'
     ) || [];
+  };
+
+  const getFilteredAvailableUsers = (teamId: string) => {
+    const availableUsers = getAvailableUsers(teamId);
+    if (!memberSearchQuery) return availableUsers;
+    return availableUsers.filter(user => 
+      user.full_name.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(memberSearchQuery.toLowerCase())
+    );
   };
 
   const handleCreateTeam = async () => {
@@ -154,20 +158,24 @@ const TeamManagement: React.FC = () => {
     }
   };
 
-  const handleAddMember = async (teamId: string) => {
-    if (!selectedUserToAdd) return;
+  const handleAddMultipleMembers = async (teamId: string) => {
+    if (selectedUsersToAdd.length === 0) return;
 
     try {
-      await addMember.mutateAsync({ teamId, userId: selectedUserToAdd });
+      for (const userId of selectedUsersToAdd) {
+        await addMember.mutateAsync({ teamId, userId });
+      }
       toast({
-        title: 'Member added',
-        description: 'Member has been added to the team.',
+        title: 'Members added',
+        description: `${selectedUsersToAdd.length} member(s) have been added to the team.`,
       });
-      setSelectedUserToAdd('');
+      setSelectedUsersToAdd([]);
+      setAddMembersDialogOpen(null);
+      setMemberSearchQuery('');
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to add member. They may already be in the team.',
+        description: 'Failed to add some members. Please try again.',
         variant: 'destructive',
       });
     }
@@ -186,6 +194,26 @@ const TeamManagement: React.FC = () => {
         description: 'Failed to remove member. Please try again.',
         variant: 'destructive',
       });
+    }
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsersToAdd(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleSelectAll = (teamId: string) => {
+    const availableUsers = getFilteredAvailableUsers(teamId);
+    const allIds = availableUsers.map(u => u.user_id);
+    const allSelected = allIds.every(id => selectedUsersToAdd.includes(id));
+    
+    if (allSelected) {
+      setSelectedUsersToAdd([]);
+    } else {
+      setSelectedUsersToAdd(allIds);
     }
   };
 
@@ -379,6 +407,9 @@ const TeamManagement: React.FC = () => {
           {filteredTeams?.map((team) => {
             const members = getTeamMembers(team.id);
             const availableUsers = getAvailableUsers(team.id);
+            const filteredAvailableUsers = getFilteredAvailableUsers(team.id);
+            const allFilteredSelected = filteredAvailableUsers.length > 0 && 
+              filteredAvailableUsers.every(u => selectedUsersToAdd.includes(u.user_id));
             
             return (
               <Card key={team.id} className="glass-card">
@@ -475,16 +506,25 @@ const TeamManagement: React.FC = () => {
                   
                   <div className="flex items-center justify-between mb-4">
                     <Badge variant="secondary">{members.length} members</Badge>
-                    <Dialog>
+                    <Dialog 
+                      open={addMembersDialogOpen === team.id} 
+                      onOpenChange={(open) => {
+                        setAddMembersDialogOpen(open ? team.id : null);
+                        if (!open) {
+                          setSelectedUsersToAdd([]);
+                          setMemberSearchQuery('');
+                        }
+                      }}
+                    >
                       <DialogTrigger asChild>
-                        <Button size="sm" variant="outline" onClick={() => setSelectedTeamForMembers(team.id)}>
+                        <Button size="sm" variant="outline">
                           <UserPlus className="w-4 h-4 mr-1" />
                           Add
                         </Button>
                       </DialogTrigger>
-                      <DialogContent>
+                      <DialogContent className="max-w-md">
                         <DialogHeader>
-                          <DialogTitle>Add Member to {team.name}</DialogTitle>
+                          <DialogTitle>Add Members to {team.name}</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                           {availableUsers.length === 0 ? (
@@ -492,35 +532,83 @@ const TeamManagement: React.FC = () => {
                               No available users to add. All approved users are already in this team.
                             </p>
                           ) : (
-                            <Select value={selectedUserToAdd} onValueChange={setSelectedUserToAdd}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a user to add..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {availableUsers.map((user) => (
-                                  <SelectItem key={user.user_id} value={user.user_id}>
-                                    <div className="flex items-center gap-2">
-                                      <span>{user.full_name}</span>
-                                      <span className="text-muted-foreground">({user.email})</span>
+                            <>
+                              {/* Search */}
+                              <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                  placeholder="Search users..."
+                                  value={memberSearchQuery}
+                                  onChange={(e) => setMemberSearchQuery(e.target.value)}
+                                  className="pl-10"
+                                />
+                              </div>
+
+                              {/* Select All */}
+                              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                                <div className="flex items-center gap-2">
+                                  <Checkbox
+                                    checked={allFilteredSelected}
+                                    onCheckedChange={() => handleSelectAll(team.id)}
+                                  />
+                                  <span className="text-sm font-medium">
+                                    Select All ({filteredAvailableUsers.length})
+                                  </span>
+                                </div>
+                                {selectedUsersToAdd.length > 0 && (
+                                  <Badge variant="secondary">
+                                    {selectedUsersToAdd.length} selected
+                                  </Badge>
+                                )}
+                              </div>
+
+                              {/* User List */}
+                              <ScrollArea className="h-[250px]">
+                                <div className="space-y-2">
+                                  {filteredAvailableUsers.map((user) => (
+                                    <div 
+                                      key={user.user_id}
+                                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer"
+                                      onClick={() => toggleUserSelection(user.user_id)}
+                                    >
+                                      <Checkbox
+                                        checked={selectedUsersToAdd.includes(user.user_id)}
+                                        onCheckedChange={() => toggleUserSelection(user.user_id)}
+                                      />
+                                      <Avatar className="h-8 w-8">
+                                        <AvatarImage src={user.avatar_url || ''} />
+                                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                          {user.full_name?.charAt(0) || '?'}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{user.full_name}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                                      </div>
                                     </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                                  ))}
+                                </div>
+                              </ScrollArea>
+                            </>
                           )}
                         </div>
                         <DialogFooter>
-                          <DialogClose asChild>
-                            <Button variant="outline">Cancel</Button>
-                          </DialogClose>
-                          <DialogClose asChild>
-                            <Button 
-                              onClick={() => handleAddMember(team.id)}
-                              disabled={!selectedUserToAdd || addMember.isPending}
-                            >
-                              Add Member
-                            </Button>
-                          </DialogClose>
+                          <Button 
+                            variant="outline" 
+                            onClick={() => {
+                              setAddMembersDialogOpen(null);
+                              setSelectedUsersToAdd([]);
+                              setMemberSearchQuery('');
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            onClick={() => handleAddMultipleMembers(team.id)}
+                            disabled={selectedUsersToAdd.length === 0 || addMember.isPending}
+                          >
+                            {addMember.isPending ? 'Adding...' : `Add ${selectedUsersToAdd.length} Member(s)`}
+                          </Button>
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
