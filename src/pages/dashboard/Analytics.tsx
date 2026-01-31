@@ -259,14 +259,22 @@ const Analytics: React.FC = () => {
       {selectedChannel !== 'all' && channelData && (
         <Card className="glass-card border-primary/30">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
+            <a 
+              href={selectedChannelInfo?.channel_link || `https://www.youtube.com/channel/${channelData.youtube_channel_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-4 group cursor-pointer"
+            >
               <img
                 src={channelData.thumbnail_url}
                 alt={channelData.channel_name}
-                className="w-16 h-16 rounded-full ring-2 ring-primary/20"
+                className="w-16 h-16 rounded-full ring-2 ring-primary/20 group-hover:ring-primary/60 transition-all"
               />
               <div className="flex-1">
-                <h2 className="text-xl font-semibold">{channelData.channel_name}</h2>
+                <h2 className="text-xl font-semibold group-hover:text-primary transition-colors flex items-center gap-2">
+                  {channelData.channel_name}
+                  <Youtube className="w-4 h-4 text-destructive" />
+                </h2>
                 <p className="text-sm text-muted-foreground line-clamp-1">
                   {channelData.description || 'No description available'}
                 </p>
@@ -279,7 +287,7 @@ const Analytics: React.FC = () => {
                   Updated {format(lastFetched, 'MMM d, h:mm a')}
                 </p>
               )}
-            </div>
+            </a>
           </CardContent>
         </Card>
       )}
@@ -621,7 +629,7 @@ const Analytics: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {youtubeAnalytics?.topChannels?.map((channel, index) => (
+                {youtubeAnalytics?.channels?.map((channel, index) => (
                   <tr key={channel.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
                     <td className="py-3 px-4">
                       <Badge
@@ -632,12 +640,17 @@ const Analytics: React.FC = () => {
                       </Badge>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center">
+                      <a 
+                        href={channel.channel_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 group"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center group-hover:bg-destructive/20 transition-colors">
                           <Youtube className="w-4 h-4 text-destructive" />
                         </div>
-                        <span className="font-medium">{channel.channel_name}</span>
-                      </div>
+                        <span className="font-medium group-hover:text-primary transition-colors">{channel.channel_name}</span>
+                      </a>
                     </td>
                     <td className="py-3 px-4 text-muted-foreground">{channel.creator_name}</td>
                     <td className="py-3 px-4 text-right font-semibold text-primary">
@@ -661,7 +674,7 @@ const Analytics: React.FC = () => {
                     </td>
                   </tr>
                 ))}
-                {(!youtubeAnalytics?.topChannels || youtubeAnalytics.topChannels.length === 0) && (
+                {(!youtubeAnalytics?.channels || youtubeAnalytics.channels.length === 0) && (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-muted-foreground">
                       <Youtube className="w-10 h-10 mx-auto mb-2 opacity-50" />
