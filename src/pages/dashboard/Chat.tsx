@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom, useDeleteMessage, useDeleteAllMessages, useDeleteSelectedMessages } from '@/hooks/useChat';
+import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom, useDeleteMessage, useDeleteMessageForMe, useDeleteAllMessages, useDeleteSelectedMessages } from '@/hooks/useChat';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +19,7 @@ const Chat: React.FC = () => {
   const createRoom = useCreateChatRoom();
   const updateRoom = useUpdateChatRoom();
   const deleteMessage = useDeleteMessage();
+  const deleteMessageForMe = useDeleteMessageForMe();
   const deleteAllMessages = useDeleteAllMessages();
   const deleteSelectedMessages = useDeleteSelectedMessages();
   const { toast } = useToast();
@@ -231,12 +232,29 @@ const Chat: React.FC = () => {
       await deleteMessage.mutateAsync({ messageId, roomId: selectedRoom });
       toast({
         title: 'Message deleted',
-        description: 'The message has been removed.',
+        description: 'The message has been removed for everyone.',
       });
     } catch (error) {
       toast({
         title: 'Error',
         description: 'Failed to delete message.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteForMe = async (messageId: string) => {
+    if (!selectedRoom) return;
+    try {
+      await deleteMessageForMe.mutateAsync({ messageId, roomId: selectedRoom });
+      toast({
+        title: 'Message hidden',
+        description: 'The message has been removed from your view.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to hide message.',
         variant: 'destructive',
       });
     }
@@ -337,6 +355,7 @@ const Chat: React.FC = () => {
             playingAudioId={playingAudioId}
             onPlayAudio={playAudio}
             onDeleteMessage={handleDeleteMessage}
+            onDeleteForMe={handleDeleteForMe}
             onDeleteAllMessages={handleDeleteAllMessages}
             onDeleteSelectedMessages={handleDeleteSelectedMessages}
             getSenderProfile={getSenderProfile}
@@ -406,6 +425,7 @@ const Chat: React.FC = () => {
         playingAudioId={playingAudioId}
         onPlayAudio={playAudio}
         onDeleteMessage={handleDeleteMessage}
+        onDeleteForMe={handleDeleteForMe}
         onDeleteAllMessages={handleDeleteAllMessages}
         onDeleteSelectedMessages={handleDeleteSelectedMessages}
         getSenderProfile={getSenderProfile}

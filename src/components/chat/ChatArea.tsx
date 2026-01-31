@@ -78,6 +78,7 @@ interface ChatAreaProps {
   playingAudioId: string | null;
   onPlayAudio: (audioUrl: string, messageId: string) => void;
   onDeleteMessage: (messageId: string) => void;
+  onDeleteForMe: (messageId: string) => void;
   onDeleteAllMessages?: () => void;
   onDeleteSelectedMessages?: (messageIds: string[]) => void;
   getSenderProfile: (senderId: string) => Profile | null | undefined;
@@ -101,6 +102,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   playingAudioId,
   onPlayAudio,
   onDeleteMessage,
+  onDeleteForMe,
   onDeleteAllMessages,
   onDeleteSelectedMessages,
   getSenderProfile,
@@ -434,6 +436,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                     playingAudioId={playingAudioId}
                     onPlayAudio={onPlayAudio}
                     onDeleteMessage={onDeleteMessage}
+                    onDeleteForMe={onDeleteForMe}
                     isSelectionMode={isSelectionMode}
                     isSelected={selectedMessageIds.has(message.id)}
                     onToggleSelect={handleToggleSelect}

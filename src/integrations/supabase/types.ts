@@ -327,6 +327,7 @@ export type Database = {
         Row: {
           content: string | null
           created_at: string
+          deleted_for: string[] | null
           file_type: string | null
           file_url: string | null
           id: string
@@ -338,6 +339,7 @@ export type Database = {
         Insert: {
           content?: string | null
           created_at?: string
+          deleted_for?: string[] | null
           file_type?: string | null
           file_url?: string | null
           id?: string
@@ -349,6 +351,7 @@ export type Database = {
         Update: {
           content?: string | null
           created_at?: string
+          deleted_for?: string[] | null
           file_type?: string | null
           file_url?: string | null
           id?: string
