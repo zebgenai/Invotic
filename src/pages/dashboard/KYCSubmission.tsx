@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import ImageCropper from '@/components/ImageCropper';
 import { 
   Upload, 
   FileCheck, 
@@ -16,7 +17,6 @@ import {
   Clock, 
   XCircle,
   CreditCard,
-  Shield,
   Loader2,
   Image as ImageIcon,
   X,
@@ -24,22 +24,49 @@ import {
   Phone
 } from 'lucide-react';
 
+interface SelectedDocument {
+  file: File | null;
+  previewUrl: string | null;
+  croppedBlob: Blob | null;
+  croppedUrl: string | null;
+}
+
 const KYCSubmission: React.FC = () => {
   const { profile, user, refreshProfile } = useAuth();
   const [uploading, setUploading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [gmail, setGmail] = useState(profile?.kyc_gmail || '');
   const [whatsapp, setWhatsapp] = useState(profile?.kyc_whatsapp || '');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Front side document
+  const [frontDoc, setFrontDoc] = useState<SelectedDocument>({
+    file: null,
+    previewUrl: null,
+    croppedBlob: null,
+    croppedUrl: null,
+  });
+  const frontInputRef = useRef<HTMLInputElement>(null);
+  const [showFrontCropper, setShowFrontCropper] = useState(false);
+  
+  // Back side document
+  const [backDoc, setBackDoc] = useState<SelectedDocument>({
+    file: null,
+    previewUrl: null,
+    croppedBlob: null,
+    croppedUrl: null,
+  });
+  const backInputRef = useRef<HTMLInputElement>(null);
+  const [showBackCropper, setShowBackCropper] = useState(false);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    side: 'front' | 'back'
+  ) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file type
-      const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+      // Validate file type - only images for cropping
+      const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
       if (!validTypes.includes(file.type)) {
-        toast.error('Please upload a valid image (JPG, PNG) or PDF file');
+        toast.error('Please upload a valid image file (JPG or PNG)');
         return;
       }
 
@@ -49,24 +76,38 @@ const KYCSubmission: React.FC = () => {
         return;
       }
 
-      setSelectedFile(file);
-
-      // Create preview for images
-      if (file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file);
-        setPreviewUrl(url);
+      const url = URL.createObjectURL(file);
+      
+      if (side === 'front') {
+        setFrontDoc({ file, previewUrl: url, croppedBlob: null, croppedUrl: null });
+        setShowFrontCropper(true);
       } else {
-        setPreviewUrl(null);
+        setBackDoc({ file, previewUrl: url, croppedBlob: null, croppedUrl: null });
+        setShowBackCropper(true);
       }
     }
   };
 
-  const clearSelection = () => {
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+  const handleFrontCropComplete = (blob: Blob, url: string) => {
+    setFrontDoc(prev => ({ ...prev, croppedBlob: blob, croppedUrl: url }));
+  };
+
+  const handleBackCropComplete = (blob: Blob, url: string) => {
+    setBackDoc(prev => ({ ...prev, croppedBlob: blob, croppedUrl: url }));
+  };
+
+  const clearFrontSelection = () => {
+    if (frontDoc.previewUrl) URL.revokeObjectURL(frontDoc.previewUrl);
+    if (frontDoc.croppedUrl) URL.revokeObjectURL(frontDoc.croppedUrl);
+    setFrontDoc({ file: null, previewUrl: null, croppedBlob: null, croppedUrl: null });
+    if (frontInputRef.current) frontInputRef.current.value = '';
+  };
+
+  const clearBackSelection = () => {
+    if (backDoc.previewUrl) URL.revokeObjectURL(backDoc.previewUrl);
+    if (backDoc.croppedUrl) URL.revokeObjectURL(backDoc.croppedUrl);
+    setBackDoc({ file: null, previewUrl: null, croppedBlob: null, croppedUrl: null });
+    if (backInputRef.current) backInputRef.current.value = '';
   };
 
   const validateGmail = (email: string) => {
@@ -75,13 +116,12 @@ const KYCSubmission: React.FC = () => {
   };
 
   const validateWhatsapp = (phone: string) => {
-    // Basic phone validation - at least 10 digits
     const phoneRegex = /^\+?[1-9]\d{9,14}$/;
     return phoneRegex.test(phone.replace(/[\s-]/g, ''));
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !user) return;
+    if (!frontDoc.croppedBlob || !backDoc.croppedBlob || !user) return;
 
     // Validate Gmail
     if (!gmail.trim()) {
@@ -105,26 +145,28 @@ const KYCSubmission: React.FC = () => {
 
     setUploading(true);
     try {
-      const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
+      const timestamp = Date.now();
+      
+      // Upload front side
+      const frontFileName = `${user.id}/${timestamp}_front.jpg`;
+      const { error: frontUploadError } = await supabase.storage
         .from('kyc-documents')
-        .upload(fileName, selectedFile);
+        .upload(frontFileName, frontDoc.croppedBlob);
+      if (frontUploadError) throw frontUploadError;
 
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
+      // Upload back side
+      const backFileName = `${user.id}/${timestamp}_back.jpg`;
+      const { error: backUploadError } = await supabase.storage
         .from('kyc-documents')
-        .getPublicUrl(fileName);
+        .upload(backFileName, backDoc.croppedBlob);
+      if (backUploadError) throw backUploadError;
 
-      // Update profile with KYC document URL and contact info
+      // Update profile with both document URLs and contact info
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
-          kyc_document_url: fileName,
+          kyc_document_url: frontFileName,
+          kyc_document_back_url: backFileName,
           kyc_status: 'pending',
           kyc_submitted_at: new Date().toISOString(),
           kyc_gmail: gmail.trim().toLowerCase(),
@@ -134,12 +176,13 @@ const KYCSubmission: React.FC = () => {
 
       if (updateError) throw updateError;
 
-      toast.success('Document uploaded successfully! Your KYC is under review.');
-      clearSelection();
+      toast.success('Documents uploaded successfully! Your KYC is under review.');
+      clearFrontSelection();
+      clearBackSelection();
       refreshProfile();
     } catch (error: any) {
       console.error('Upload error:', error);
-      toast.error(error.message || 'Failed to upload document');
+      toast.error(error.message || 'Failed to upload documents');
     } finally {
       setUploading(false);
     }
@@ -158,7 +201,7 @@ const KYCSubmission: React.FC = () => {
         return {
           icon: <XCircle className="w-8 h-8 text-red-500" />,
           title: 'KYC Rejected',
-          description: 'Your document was not accepted. Please upload a clear, valid document.',
+          description: 'Your document was not accepted. Please upload clear, valid documents.',
           badgeClass: 'badge-error',
         };
       default:
@@ -166,14 +209,15 @@ const KYCSubmission: React.FC = () => {
           icon: <Clock className="w-8 h-8 text-yellow-500" />,
           title: 'KYC Pending',
           description: profile?.kyc_document_url 
-            ? 'Your document is being reviewed. This usually takes 24-48 hours.'
-            : 'Please upload your National ID Card or Passport to verify your identity.',
+            ? 'Your documents are being reviewed. This usually takes 24-48 hours.'
+            : 'Please upload both sides of your CNIC to verify your identity.',
           badgeClass: 'badge-warning',
         };
     }
   };
 
   const statusInfo = getStatusInfo();
+  const canSubmit = frontDoc.croppedBlob && backDoc.croppedBlob && gmail.trim() && whatsapp.trim();
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -211,27 +255,141 @@ const KYCSubmission: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Upload className="w-5 h-5" />
-              Upload Identity Document
+              Upload CNIC Documents
             </CardTitle>
             <CardDescription>
-              Upload a clear photo of your National ID Card or Passport
+              Upload clear photos of both sides of your National ID Card (CNIC)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Document Options */}
+            {/* Document Info */}
+            <div className="flex items-center gap-3 p-4 border border-border rounded-lg bg-secondary/30">
+              <CreditCard className="w-8 h-8 text-primary" />
+              <div>
+                <p className="font-medium">National ID Card (CNIC)</p>
+                <p className="text-sm text-muted-foreground">Upload front and back sides separately</p>
+              </div>
+            </div>
+
+            {/* Front and Back Upload Areas */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3 p-4 border border-border rounded-lg bg-secondary/30">
-                <CreditCard className="w-8 h-8 text-primary" />
-                <div>
-                  <p className="font-medium">National ID Card</p>
-                  <p className="text-sm text-muted-foreground">Front side with photo</p>
+              {/* Front Side Upload */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Front Side <span className="text-destructive">*</span></Label>
+                <div 
+                  className={`
+                    border-2 border-dashed rounded-xl p-4 text-center transition-all min-h-[180px] flex flex-col items-center justify-center
+                    ${frontDoc.croppedUrl ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}
+                  `}
+                >
+                  {!frontDoc.croppedUrl ? (
+                    <div className="space-y-3">
+                      <div className="flex justify-center">
+                        <div className="p-3 rounded-full bg-primary/10">
+                          <ImageIcon className="w-6 h-6 text-primary" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Front of CNIC</p>
+                        <p className="text-xs text-muted-foreground">JPG or PNG (max 5MB)</p>
+                      </div>
+                      <input
+                        ref={frontInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/jpg"
+                        onChange={(e) => handleFileSelect(e, 'front')}
+                        className="hidden"
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => frontInputRef.current?.click()}
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Select Image
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 w-full">
+                      <img 
+                        src={frontDoc.croppedUrl} 
+                        alt="Front side preview" 
+                        className="max-h-28 rounded-lg object-contain mx-auto"
+                      />
+                      <div className="flex items-center justify-center gap-2">
+                        <FileCheck className="w-4 h-4 text-green-500" />
+                        <span className="text-sm font-medium">Front side ready</span>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6"
+                          onClick={clearFrontSelection}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-4 border border-border rounded-lg bg-secondary/30">
-                <Shield className="w-8 h-8 text-primary" />
-                <div>
-                  <p className="font-medium">Passport</p>
-                  <p className="text-sm text-muted-foreground">Photo page only</p>
+
+              {/* Back Side Upload */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Back Side <span className="text-destructive">*</span></Label>
+                <div 
+                  className={`
+                    border-2 border-dashed rounded-xl p-4 text-center transition-all min-h-[180px] flex flex-col items-center justify-center
+                    ${backDoc.croppedUrl ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}
+                  `}
+                >
+                  {!backDoc.croppedUrl ? (
+                    <div className="space-y-3">
+                      <div className="flex justify-center">
+                        <div className="p-3 rounded-full bg-primary/10">
+                          <ImageIcon className="w-6 h-6 text-primary" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Back of CNIC</p>
+                        <p className="text-xs text-muted-foreground">JPG or PNG (max 5MB)</p>
+                      </div>
+                      <input
+                        ref={backInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/jpg"
+                        onChange={(e) => handleFileSelect(e, 'back')}
+                        className="hidden"
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => backInputRef.current?.click()}
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Select Image
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 w-full">
+                      <img 
+                        src={backDoc.croppedUrl} 
+                        alt="Back side preview" 
+                        className="max-h-28 rounded-lg object-contain mx-auto"
+                      />
+                      <div className="flex items-center justify-center gap-2">
+                        <FileCheck className="w-4 h-4 text-green-500" />
+                        <span className="text-sm font-medium">Back side ready</span>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6"
+                          onClick={clearBackSelection}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -274,77 +432,11 @@ const KYCSubmission: React.FC = () => {
               </div>
             </div>
 
-            {/* Upload Area */}
-            <div 
-              className={`
-                border-2 border-dashed rounded-xl p-8 text-center transition-all
-                ${selectedFile ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}
-              `}
-            >
-              {!selectedFile ? (
-                <div className="space-y-4">
-                  <div className="flex justify-center">
-                    <div className="p-4 rounded-full bg-primary/10">
-                      <ImageIcon className="w-8 h-8 text-primary" />
-                    </div>
-                  </div>
-                  <div>
-                    <p className="font-medium">Click to upload or drag and drop</p>
-                    <p className="text-sm text-muted-foreground">
-                      JPG, PNG or PDF (max 5MB)
-                    </p>
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/jpg,application/pdf"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    id="kyc-upload"
-                  />
-                  <Button 
-                    variant="outline" 
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Select File
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {previewUrl && (
-                    <div className="flex justify-center">
-                      <img 
-                        src={previewUrl} 
-                        alt="Preview" 
-                        className="max-h-48 rounded-lg object-contain"
-                      />
-                    </div>
-                  )}
-                  <div className="flex items-center justify-center gap-2">
-                    <FileCheck className="w-5 h-5 text-green-500" />
-                    <span className="font-medium">{selectedFile.name}</span>
-                    <span className="text-muted-foreground text-sm">
-                      ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                    </span>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-6 w-6"
-                      onClick={clearSelection}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* Submit Button */}
             <div className="flex justify-end">
               <Button 
                 onClick={handleUpload}
-                disabled={!selectedFile || uploading || !gmail.trim() || !whatsapp.trim()}
+                disabled={!canSubmit || uploading}
                 className="min-w-[150px]"
               >
                 {uploading ? (
@@ -367,10 +459,11 @@ const KYCSubmission: React.FC = () => {
               <AlertDescription>
                 <strong>Document Guidelines:</strong>
                 <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
-                  <li>Ensure the document is clearly visible and not blurry</li>
+                  <li>Ensure both sides of the document are clearly visible</li>
                   <li>All corners of the document must be visible</li>
                   <li>No glare or shadows covering the text</li>
                   <li>Document must be valid and not expired</li>
+                  <li>Use the crop tool to adjust the image if needed</li>
                 </ul>
               </AlertDescription>
             </Alert>
@@ -395,6 +488,31 @@ const KYCSubmission: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Image Croppers */}
+      {frontDoc.previewUrl && (
+        <ImageCropper
+          open={showFrontCropper}
+          onClose={() => setShowFrontCropper(false)}
+          imageSrc={frontDoc.previewUrl}
+          onCropComplete={handleFrontCropComplete}
+          aspectRatio={1.586} // ID card aspect ratio (85.6mm x 54mm)
+          title="Crop Front Side"
+          description="Adjust the crop area to fit your CNIC front side"
+        />
+      )}
+      
+      {backDoc.previewUrl && (
+        <ImageCropper
+          open={showBackCropper}
+          onClose={() => setShowBackCropper(false)}
+          imageSrc={backDoc.previewUrl}
+          onCropComplete={handleBackCropComplete}
+          aspectRatio={1.586}
+          title="Crop Back Side"
+          description="Adjust the crop area to fit your CNIC back side"
+        />
       )}
     </div>
   );

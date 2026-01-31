@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import ChatArea from '@/components/chat/ChatArea';
+import ImageCropper from '@/components/ImageCropper';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const Chat: React.FC = () => {
@@ -31,6 +32,11 @@ const Chat: React.FC = () => {
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isMobile = useIsMobile();
+  
+  // Image cropper state
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [showImageCropper, setShowImageCropper] = useState(false);
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,11 +121,22 @@ const Chat: React.FC = () => {
       return;
     }
 
+    // Show cropper instead of uploading directly
+    const url = URL.createObjectURL(file);
+    setImagePreviewUrl(url);
+    setPendingImageFile(file);
+    setShowImageCropper(true);
+    e.target.value = '';
+  };
+
+  const handleImageCropComplete = async (blob: Blob, _url: string) => {
+    if (!selectedRoom || !user || !pendingImageFile) return;
+
     try {
-      const fileName = `attachments/${user.id}/${Date.now()}-${file.name}`;
+      const fileName = `attachments/${user.id}/${Date.now()}-${pendingImageFile.name.replace(/\.[^/.]+$/, '')}.jpg`;
       const { error: uploadError } = await supabase.storage
         .from('chat-files')
-        .upload(fileName, file);
+        .upload(fileName, blob, { contentType: 'image/jpeg' });
 
       if (uploadError) throw uploadError;
 
@@ -129,7 +146,7 @@ const Chat: React.FC = () => {
 
       await sendMessage.mutateAsync({
         roomId: selectedRoom,
-        content: `📷 ${file.name}`,
+        content: `📷 Image`,
         fileUrl: urlData.publicUrl,
         fileType: 'image',
       });
@@ -145,9 +162,14 @@ const Chat: React.FC = () => {
         description: 'Failed to send image. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      // Clean up
+      if (imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl);
+        setImagePreviewUrl(null);
+      }
+      setPendingImageFile(null);
     }
-
-    e.target.value = '';
   };
 
   const playAudio = (audioUrl: string, messageId: string) => {
@@ -371,6 +393,25 @@ const Chat: React.FC = () => {
         currentUserId={user?.id}
         isAdmin={role === 'admin'}
       />
+
+      {/* Image Cropper Dialog */}
+      {imagePreviewUrl && (
+        <ImageCropper
+          open={showImageCropper}
+          onClose={() => {
+            setShowImageCropper(false);
+            if (imagePreviewUrl) {
+              URL.revokeObjectURL(imagePreviewUrl);
+              setImagePreviewUrl(null);
+            }
+            setPendingImageFile(null);
+          }}
+          imageSrc={imagePreviewUrl}
+          onCropComplete={handleImageCropComplete}
+          title="Crop Image"
+          description="Adjust the crop area before sending"
+        />
+      )}
     </div>
   );
 };

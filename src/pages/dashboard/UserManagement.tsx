@@ -140,12 +140,12 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const handleDeleteKyc = async (userId: string, documentUrl: string | null) => {
+  const handleDeleteKyc = async (userId: string, documentUrl: string | null, documentBackUrl?: string | null) => {
     try {
-      await deleteKyc.mutateAsync({ userId, documentUrl });
+      await deleteKyc.mutateAsync({ userId, documentUrl, documentBackUrl });
       toast({
         title: 'KYC deleted',
-        description: 'KYC document and status have been cleared.',
+        description: 'KYC documents and status have been cleared.',
       });
     } catch (error) {
       toast({
@@ -428,35 +428,59 @@ const UserManagement: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         {profile.kyc_document_url ? (
-                          <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              {profile.kyc_document_url.toLowerCase().endsWith('.pdf') ? (
-                                <FileText className="w-4 h-4" />
-                              ) : (
+                          <div className="space-y-2">
+                            {/* Front Side */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground w-10">Front:</span>
+                              <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                 <ImageIcon className="w-4 h-4" />
-                              )}
-                              <span className="max-w-[80px] truncate">
-                                {profile.kyc_document_url.split('/').pop()}
-                              </span>
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => handleViewDocument(profile.kyc_document_url!, `${profile.full_name} - Front`)}
+                                title="View Front"
+                              >
+                                <Eye className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => handleDownloadDocument(profile.kyc_document_url!, `${profile.full_name}_Front`)}
+                                title="Download Front"
+                              >
+                                <Download className="w-3 h-3" />
+                              </Button>
                             </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7"
-                              onClick={() => handleViewDocument(profile.kyc_document_url!, profile.full_name)}
-                              title="View Document"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7"
-                              onClick={() => handleDownloadDocument(profile.kyc_document_url!, profile.full_name)}
-                              title="Download Document"
-                            >
-                              <Download className="w-4 h-4" />
-                            </Button>
+                            {/* Back Side */}
+                            {profile.kyc_document_back_url && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground w-10">Back:</span>
+                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                  <ImageIcon className="w-4 h-4" />
+                                </div>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6"
+                                  onClick={() => handleViewDocument(profile.kyc_document_back_url!, `${profile.full_name} - Back`)}
+                                  title="View Back"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6"
+                                  onClick={() => handleDownloadDocument(profile.kyc_document_back_url!, `${profile.full_name}_Back`)}
+                                  title="Download Back"
+                                >
+                                  <Download className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <span className="text-sm text-muted-foreground">No document</span>
@@ -519,7 +543,7 @@ const UserManagement: React.FC = () => {
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                                   <AlertDialogAction
                                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    onClick={() => handleDeleteKyc(profile.user_id, profile.kyc_document_url)}
+                                    onClick={() => handleDeleteKyc(profile.user_id, profile.kyc_document_url, profile.kyc_document_back_url)}
                                   >
                                     Delete
                                   </AlertDialogAction>
