@@ -98,6 +98,44 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_analytics_history: {
+        Row: {
+          channel_id: string
+          created_at: string
+          id: string
+          recorded_at: string
+          subscriber_count: number
+          video_count: number
+          view_count: number
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          id?: string
+          recorded_at?: string
+          subscriber_count?: number
+          video_count?: number
+          view_count?: number
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          id?: string
+          recorded_at?: string
+          subscriber_count?: number
+          video_count?: number
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_analytics_history_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_room_members: {
         Row: {
           can_post: boolean
