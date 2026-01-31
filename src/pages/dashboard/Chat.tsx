@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom, useDeleteMessage, useDeleteMessageForMe, useDeleteAllMessages, useDeleteSelectedMessages, useEditMessage, useCreatePrivateChat, useAllProfiles } from '@/hooks/useChat';
+import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom, useDeleteMessage, useDeleteMessageForMe, useDeleteAllMessages, useDeleteSelectedMessages, useEditMessage, useCreatePrivateChat, useAllProfiles, useDeleteChatRoom } from '@/hooks/useChat';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +24,7 @@ const Chat: React.FC = () => {
   const deleteSelectedMessages = useDeleteSelectedMessages();
   const editMessage = useEditMessage();
   const createPrivateChat = useCreatePrivateChat();
+  const deleteChatRoom = useDeleteChatRoom();
   const { data: allProfiles } = useAllProfiles();
   const { toast } = useToast();
   const [messageInput, setMessageInput] = useState('');
@@ -331,6 +332,24 @@ const Chat: React.FC = () => {
     }
   };
 
+  const handleDeleteRoom = async () => {
+    if (!selectedRoom) return;
+    try {
+      await deleteChatRoom.mutateAsync({ roomId: selectedRoom });
+      setSelectedRoom(null);
+      toast({
+        title: 'Room deleted',
+        description: 'The chat room and all its messages have been deleted.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete room.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getSenderProfile = (senderId: string) => {
     if (senderId === user?.id) return profile;
     return profiles?.find((p) => p.user_id === senderId);
@@ -398,6 +417,7 @@ const Chat: React.FC = () => {
             onEditMessage={handleEditMessage}
             onDeleteAllMessages={handleDeleteAllMessages}
             onDeleteSelectedMessages={handleDeleteSelectedMessages}
+            onDeleteRoom={handleDeleteRoom}
             getSenderProfile={getSenderProfile}
             currentUserId={user?.id}
             isAdmin={role === 'admin'}
@@ -471,6 +491,7 @@ const Chat: React.FC = () => {
         onEditMessage={handleEditMessage}
         onDeleteAllMessages={handleDeleteAllMessages}
         onDeleteSelectedMessages={handleDeleteSelectedMessages}
+        onDeleteRoom={handleDeleteRoom}
         getSenderProfile={getSenderProfile}
         currentUserId={user?.id}
         isAdmin={role === 'admin'}

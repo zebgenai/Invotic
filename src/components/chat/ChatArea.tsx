@@ -32,6 +32,7 @@ import {
   CalendarIcon,
   CheckSquare,
   X,
+  Trash,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isWithinInterval, parseISO, format, startOfDay, endOfDay } from 'date-fns';
@@ -82,6 +83,7 @@ interface ChatAreaProps {
   onEditMessage?: (messageId: string, newContent: string) => void;
   onDeleteAllMessages?: () => void;
   onDeleteSelectedMessages?: (messageIds: string[]) => void;
+  onDeleteRoom?: () => void;
   getSenderProfile: (senderId: string) => Profile | null | undefined;
   currentUserId: string | undefined;
   isAdmin: boolean;
@@ -107,6 +109,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   onEditMessage,
   onDeleteAllMessages,
   onDeleteSelectedMessages,
+  onDeleteRoom,
   getSenderProfile,
   currentUserId,
   isAdmin,
@@ -253,6 +256,39 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-1">
+            {/* Delete Room - Admin Only */}
+            {isAdmin && onDeleteRoom && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="rounded-xl hover:bg-destructive/10 hover:text-destructive"
+                    title="Delete room"
+                  >
+                    <Trash className="w-4 h-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Chat Room</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this entire chat room? 
+                      All messages and members will be removed. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={onDeleteRoom}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete Room
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
             {/* Delete All Messages - Admin Only */}
             {isAdmin && onDeleteAllMessages && messages && messages.length > 0 && (
               <AlertDialog>
