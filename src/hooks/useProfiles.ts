@@ -57,19 +57,32 @@ export const useDeleteKyc = () => {
   return useMutation({
     mutationFn: async ({ 
       userId, 
-      documentUrl 
+      documentUrl,
+      documentBackUrl 
     }: { 
       userId: string; 
       documentUrl: string | null;
+      documentBackUrl?: string | null;
     }) => {
-      // Delete the document from storage if it exists
+      // Delete the front document from storage if it exists
       if (documentUrl) {
         const { error: storageError } = await supabase.storage
           .from('kyc-documents')
           .remove([documentUrl]);
         
         if (storageError) {
-          console.error('Failed to delete KYC document from storage:', storageError);
+          console.error('Failed to delete front KYC document from storage:', storageError);
+        }
+      }
+
+      // Delete the back document from storage if it exists
+      if (documentBackUrl) {
+        const { error: storageError } = await supabase.storage
+          .from('kyc-documents')
+          .remove([documentBackUrl]);
+        
+        if (storageError) {
+          console.error('Failed to delete back KYC document from storage:', storageError);
         }
       }
 
@@ -79,6 +92,7 @@ export const useDeleteKyc = () => {
         .update({ 
           kyc_status: 'pending',
           kyc_document_url: null,
+          kyc_document_back_url: null,
           kyc_submitted_at: null,
           kyc_reviewed_at: null,
           kyc_reviewed_by: null,

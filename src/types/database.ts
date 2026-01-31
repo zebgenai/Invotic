@@ -11,6 +11,7 @@ export interface Profile {
   avatar_url: string | null;
   kyc_status: KycStatus;
   kyc_document_url: string | null;
+  kyc_document_back_url: string | null;
   kyc_submitted_at: string | null;
   kyc_reviewed_at: string | null;
   kyc_reviewed_by: string | null;

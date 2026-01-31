@@ -13,6 +13,7 @@ import { User, Bell, Shield, Palette, Sun, Moon, Monitor, Camera, Loader2 } from
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import ImageCropper from '@/components/ImageCropper';
 import {
   Dialog,
   DialogContent,
@@ -32,7 +33,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB max
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB max for initial selection (will be cropped)
 
 const Settings: React.FC = () => {
   const { profile, role, user, refreshProfile, signOut } = useAuth();
@@ -58,6 +59,10 @@ const Settings: React.FC = () => {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  // Image cropper state
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [showAvatarCropper, setShowAvatarCropper] = useState(false);
+
   // Update fullName when profile loads
   React.useEffect(() => {
     if (profile?.full_name) {
@@ -65,7 +70,7 @@ const Settings: React.FC = () => {
     }
   }, [profile?.full_name]);
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
@@ -81,22 +86,35 @@ const Settings: React.FC = () => {
     if (file.size > MAX_FILE_SIZE) {
       toast({
         title: 'File too large',
-        description: 'Please upload an image smaller than 2MB',
+        description: 'Please upload an image smaller than 5MB',
         variant: 'destructive',
       });
       return;
     }
 
+    // Create preview URL and show cropper
+    const url = URL.createObjectURL(file);
+    setAvatarPreviewUrl(url);
+    setShowAvatarCropper(true);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleAvatarCropComplete = async (blob: Blob, _url: string) => {
+    if (!user) return;
+
     setUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${user.id}/avatar.${fileExt}`;
+      const filePath = `${user.id}/avatar.jpg`;
 
       await supabase.storage.from('avatars').remove([filePath]);
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, blob, { upsert: true, contentType: 'image/jpeg' });
 
       if (uploadError) throw uploadError;
 
@@ -126,8 +144,10 @@ const Settings: React.FC = () => {
       });
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      // Clean up preview URL
+      if (avatarPreviewUrl) {
+        URL.revokeObjectURL(avatarPreviewUrl);
+        setAvatarPreviewUrl(null);
       }
     }
   };
@@ -281,7 +301,7 @@ const Settings: React.FC = () => {
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/gif"
-                onChange={handleAvatarUpload}
+                onChange={handleAvatarSelect}
                 className="hidden"
               />
             </div>
@@ -295,7 +315,7 @@ const Settings: React.FC = () => {
                 {uploading ? 'Uploading...' : 'Change Avatar'}
               </Button>
               <p className="text-xs text-muted-foreground mt-1">
-                JPG, PNG or GIF. Max 2MB.
+                JPG, PNG or GIF. Max 5MB. Crop to adjust.
               </p>
             </div>
           </div>
@@ -683,6 +703,24 @@ const Settings: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Avatar Cropper */}
+      {avatarPreviewUrl && (
+        <ImageCropper
+          open={showAvatarCropper}
+          onClose={() => {
+            setShowAvatarCropper(false);
+            URL.revokeObjectURL(avatarPreviewUrl);
+            setAvatarPreviewUrl(null);
+          }}
+          imageSrc={avatarPreviewUrl}
+          onCropComplete={handleAvatarCropComplete}
+          aspectRatio={1}
+          circularCrop={true}
+          title="Crop Profile Picture"
+          description="Adjust the crop area to fit your profile picture"
+        />
+      )}
     </div>
   );
 };
