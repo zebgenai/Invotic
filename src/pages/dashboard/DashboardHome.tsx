@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useTasks } from '@/hooks/useTasks';
@@ -14,6 +15,7 @@ import {
   Clock,
   Star,
   Activity,
+  Eye,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +27,7 @@ const DashboardHome: React.FC = () => {
   const { data: tasks } = useTasks();
   const { data: channels } = useChannels();
   const { data: announcements } = useAnnouncements();
+  const navigate = useNavigate();
 
   const pendingTasks = tasks?.filter((t) => t.status === 'todo' || t.status === 'in_progress') || [];
   const completedTasks = tasks?.filter((t) => t.status === 'completed') || [];
@@ -36,6 +39,17 @@ const DashboardHome: React.FC = () => {
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
   };
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toLocaleString();
+  };
+
+  // Get top 5 channels by subscribers for the leaderboard widget
+  const topChannels = [...(channels || [])]
+    .sort((a, b) => (b.subscriber_count || 0) - (a.subscriber_count || 0))
+    .slice(0, 5);
 
   return (
     <div className="space-y-8">
@@ -50,7 +64,10 @@ const DashboardHome: React.FC = () => {
           </p>
         </div>
         {profile?.kyc_status === 'pending' && (
-          <Badge className="badge-warning self-start">
+          <Badge 
+            className="badge-warning self-start cursor-pointer hover:opacity-80"
+            onClick={() => navigate('/dashboard/kyc-submit')}
+          >
             <Clock className="w-3 h-3 mr-1" />
             KYC Pending Approval
           </Badge>
@@ -67,6 +84,7 @@ const DashboardHome: React.FC = () => {
               change="+12% from last month"
               changeType="positive"
               icon={<Users className="w-6 h-6" />}
+              href="/dashboard/users"
             />
             <StatCard
               title="Pending KYC"
@@ -74,6 +92,7 @@ const DashboardHome: React.FC = () => {
               change={pendingKyc.length > 0 ? 'Needs attention' : 'All clear'}
               changeType={pendingKyc.length > 0 ? 'negative' : 'positive'}
               icon={<Clock className="w-6 h-6" />}
+              href="/dashboard/kyc"
             />
           </>
         )}
@@ -83,6 +102,7 @@ const DashboardHome: React.FC = () => {
           change={`${completedTasks.length} completed`}
           changeType="neutral"
           icon={<CheckSquare className="w-6 h-6" />}
+          href="/dashboard/tasks"
         />
         <StatCard
           title="Channels"
@@ -90,6 +110,7 @@ const DashboardHome: React.FC = () => {
           change="+5 new this week"
           changeType="positive"
           icon={<Youtube className="w-6 h-6" />}
+          href={role === 'admin' ? '/dashboard/channels' : '/dashboard/channel'}
         />
         <StatCard
           title="Announcements"
@@ -97,6 +118,7 @@ const DashboardHome: React.FC = () => {
           change="Updated recently"
           changeType="neutral"
           icon={<Megaphone className="w-6 h-6" />}
+          href="/dashboard/announcements"
         />
         {role === 'user' && (
           <StatCard
@@ -105,6 +127,7 @@ const DashboardHome: React.FC = () => {
             change="Level 3 Partner"
             changeType="positive"
             icon={<Star className="w-6 h-6" />}
+            href="/dashboard/leaderboard"
           />
         )}
       </div>
@@ -112,7 +135,10 @@ const DashboardHome: React.FC = () => {
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Activity */}
-        <Card className="glass-card col-span-1 lg:col-span-2">
+        <Card 
+          className="glass-card col-span-1 lg:col-span-2 cursor-pointer hover:border-primary/50 transition-colors"
+          onClick={() => navigate('/dashboard/tasks')}
+        >
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="w-5 h-5 text-primary" />
@@ -160,7 +186,10 @@ const DashboardHome: React.FC = () => {
         </Card>
 
         {/* Announcements */}
-        <Card className="glass-card">
+        <Card 
+          className="glass-card cursor-pointer hover:border-primary/50 transition-colors"
+          onClick={() => navigate('/dashboard/announcements')}
+        >
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Megaphone className="w-5 h-5 text-primary" />
@@ -198,9 +227,64 @@ const DashboardHome: React.FC = () => {
         </Card>
       </div>
 
+      {/* Channel Leaderboard Widget */}
+      <Card 
+        className="glass-card cursor-pointer hover:border-primary/50 transition-colors"
+        onClick={() => navigate('/dashboard/leaderboard')}
+      >
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-primary" />
+            Channel Leaderboard
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {topChannels.length > 0 ? (
+              topChannels.map((channel, index) => (
+                <div
+                  key={channel.id}
+                  className="flex items-center gap-4 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                    index === 0 ? 'bg-yellow-500/20 text-yellow-500' :
+                    index === 1 ? 'bg-gray-400/20 text-gray-400' :
+                    index === 2 ? 'bg-amber-600/20 text-amber-600' :
+                    'bg-secondary text-muted-foreground'
+                  }`}>
+                    {index + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{channel.channel_name}</p>
+                    <p className="text-xs text-muted-foreground">@{channel.creator_name?.toLowerCase().replace(/\s+/g, '_')}</p>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Eye className="w-4 h-4" />
+                      <span>{formatNumber(Number(channel.view_count) || 0)}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-primary font-medium">
+                      <Users className="w-4 h-4" />
+                      <span>{formatNumber(channel.subscriber_count || 0)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-muted-foreground py-8">
+                No channels added yet.
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Quick Actions for Admin */}
       {role === 'admin' && pendingKyc.length > 0 && (
-        <Card className="glass-card border-warning/50">
+        <Card 
+          className="glass-card border-warning/50 cursor-pointer hover:border-warning transition-colors"
+          onClick={() => navigate('/dashboard/kyc')}
+        >
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-warning">
               <Clock className="w-5 h-5" />

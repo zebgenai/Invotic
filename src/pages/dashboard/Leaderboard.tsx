@@ -191,7 +191,7 @@ const Leaderboard: React.FC = () => {
                     <div className="absolute -bottom-1 -right-1 text-2xl">🥈</div>
                   </div>
                   <h3 className="font-medium truncate text-sm">{leaderboardData[1]?.profile?.full_name || 'User'}</h3>
-                  <p className="text-xs text-muted-foreground truncate">{leaderboardData[1]?.top_channel?.channel_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">@{(leaderboardData[1]?.profile as any)?.handle || leaderboardData[1]?.profile?.full_name?.toLowerCase().replace(/\s+/g, '_')}</p>
                   <p className="text-lg font-bold text-primary mt-1">{formatNumber(leaderboardData[1]?.total_subscribers)}</p>
                   <p className="text-xs text-muted-foreground">subscribers</p>
                 </CardContent>
@@ -214,7 +214,7 @@ const Leaderboard: React.FC = () => {
                     <div className="absolute -bottom-1 -right-1 text-3xl">🥇</div>
                   </div>
                   <h3 className="font-semibold truncate">{leaderboardData[0]?.profile?.full_name || 'User'}</h3>
-                  <p className="text-xs text-muted-foreground truncate">{leaderboardData[0]?.top_channel?.channel_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">@{(leaderboardData[0]?.profile as any)?.handle || leaderboardData[0]?.profile?.full_name?.toLowerCase().replace(/\s+/g, '_')}</p>
                   <p className="text-2xl font-bold gradient-text mt-1">{formatNumber(leaderboardData[0]?.total_subscribers)}</p>
                   <p className="text-xs text-muted-foreground">subscribers</p>
                 </CardContent>
@@ -233,7 +233,7 @@ const Leaderboard: React.FC = () => {
                     <div className="absolute -bottom-1 -right-1 text-2xl">🥉</div>
                   </div>
                   <h3 className="font-medium truncate text-sm">{leaderboardData[2]?.profile?.full_name || 'User'}</h3>
-                  <p className="text-xs text-muted-foreground truncate">{leaderboardData[2]?.top_channel?.channel_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">@{(leaderboardData[2]?.profile as any)?.handle || leaderboardData[2]?.profile?.full_name?.toLowerCase().replace(/\s+/g, '_')}</p>
                   <p className="text-lg font-bold text-primary mt-1">{formatNumber(leaderboardData[2]?.total_subscribers)}</p>
                   <p className="text-xs text-muted-foreground">subscribers</p>
                 </CardContent>
@@ -282,29 +282,25 @@ const Leaderboard: React.FC = () => {
                             <Badge variant="secondary" className="text-xs shrink-0">You</Badge>
                           )}
                         </div>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                          <Youtube className="w-3 h-3 text-destructive" />
-                          <span className="truncate">{entry.top_channel?.channel_name || 'No channel'}</span>
-                          {entry.channel_count > 1 && (
-                            <span className="text-muted-foreground">+{entry.channel_count - 1} more</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                          <span className="flex items-center gap-1">
-                            <Eye className="w-3 h-3" />
-                            {formatNumber(entry.total_views)} views
-                          </span>
-                          <span className="flex items-center gap-1">
-                            {entry.total_videos} videos
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-lg flex items-center gap-1 justify-end">
-                          <Users className="w-4 h-4 text-primary" />
-                          {formatNumber(entry.total_subscribers)}
+                        <p className="text-xs text-muted-foreground">
+                          @{(entry.profile as any)?.handle || entry.profile?.full_name?.toLowerCase().replace(/\s+/g, '_')}
                         </p>
-                        <p className="text-xs text-muted-foreground">subscribers</p>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <div className="text-center">
+                          <p className="font-bold text-lg flex items-center gap-1 justify-center">
+                            <Eye className="w-4 h-4 text-muted-foreground" />
+                            {formatNumber(entry.total_views)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">views</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-bold text-lg flex items-center gap-1 justify-center text-primary">
+                            <Users className="w-4 h-4" />
+                            {formatNumber(entry.total_subscribers)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">subscribers</p>
+                        </div>
                       </div>
                     </div>
                   ))

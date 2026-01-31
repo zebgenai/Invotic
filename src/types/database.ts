@@ -9,6 +9,7 @@ export interface Profile {
   id: string;
   user_id: string;
   full_name: string;
+  handle: string | null;
   email: string;
   avatar_url: string | null;
   kyc_status: KycStatus;

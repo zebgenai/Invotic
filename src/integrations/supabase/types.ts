@@ -335,6 +335,7 @@ export type Database = {
           created_at: string
           email: string
           full_name: string
+          handle: string | null
           id: string
           is_active: boolean
           kyc_document_back_url: string | null
@@ -355,6 +356,7 @@ export type Database = {
           created_at?: string
           email: string
           full_name: string
+          handle?: string | null
           id?: string
           is_active?: boolean
           kyc_document_back_url?: string | null
@@ -375,6 +377,7 @@ export type Database = {
           created_at?: string
           email?: string
           full_name?: string
+          handle?: string | null
           id?: string
           is_active?: boolean
           kyc_document_back_url?: string | null
