@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useChartData, useDashboardStats, useActivityLogs, useYouTubeAnalytics } from '@/hooks/useAnalytics';
 import { useChannels } from '@/hooks/useChannels';
 import { useYouTubeAnalytics as useYouTubeChannelAnalytics, formatCount } from '@/hooks/useYouTubeAnalytics';
+import { useChannelAnalyticsHistory, useRecordAnalyticsSnapshot, TimePeriod } from '@/hooks/useChannelAnalyticsHistory';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +30,7 @@ import {
   RefreshCw,
   ThumbsUp,
   Calendar,
+  Database,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -48,6 +50,7 @@ import {
   Legend,
 } from 'recharts';
 import { format, subDays, subWeeks, subMonths, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval } from 'date-fns';
+import { toast } from 'sonner';
 
 const COLORS = ['hsl(262, 83%, 58%)', 'hsl(199, 89%, 48%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(0, 84%, 60%)', 'hsl(280, 65%, 60%)'];
 
@@ -56,8 +59,6 @@ const formatNumber = (num: number) => {
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
   return num.toLocaleString();
 };
-
-type TimePeriod = 'daily' | 'weekly' | 'monthly';
 
 const Analytics: React.FC = () => {
   const { role } = useAuth();
@@ -84,6 +85,18 @@ const Analytics: React.FC = () => {
     refetch: refetchChannel,
     lastFetched 
   } = useYouTubeChannelAnalytics(selectedChannelLink, 0);
+
+  // Get historical analytics data from database
+  const { 
+    data: analyticsHistory, 
+    isLoading: historyLoading 
+  } = useChannelAnalyticsHistory(
+    selectedChannel === 'all' ? null : selectedChannel, 
+    timePeriod
+  );
+  
+  // Record analytics snapshot mutation
+  const recordSnapshot = useRecordAnalyticsSnapshot();
   
   const [isRefreshing, setIsRefreshing] = useState(false);
   
@@ -93,8 +106,36 @@ const Analytics: React.FC = () => {
     setIsRefreshing(false);
   };
 
-  // Generate time-based chart data
+  const handleRecordSnapshot = async () => {
+    try {
+      const result = await recordSnapshot.mutateAsync();
+      toast.success(`Recorded analytics snapshot for ${result.recorded} channels`);
+    } catch (error) {
+      toast.error('Failed to record analytics snapshot');
+    }
+  };
+
+  // Record snapshot on initial load if channels exist
+  useEffect(() => {
+    if (channels && channels.length > 0 && role === 'admin') {
+      // Record a snapshot when the page loads (will be deduplicated by date)
+      recordSnapshot.mutate();
+    }
+  }, [channels?.length, role]);
+
+  // Use historical data from database for charts
   const timeBasedData = useMemo(() => {
+    if (analyticsHistory && analyticsHistory.length > 0) {
+      return analyticsHistory.map(item => ({
+        name: item.label,
+        date: item.date,
+        subscribers: item.subscribers,
+        views: item.views,
+        videos: item.videos,
+      }));
+    }
+    
+    // Fallback to current data if no history
     const now = new Date();
     let intervals: Date[] = [];
     let labelFormat = '';
@@ -126,17 +167,16 @@ const Analytics: React.FC = () => {
       : (channelData?.video_count || 0);
     
     return intervals.map((date, index) => {
-      // Simulate growth trend based on actual data
-      const growthFactor = 0.7 + (index * 0.05);
+      const factor = (index + 1) / intervals.length;
       return {
         name: format(date, labelFormat),
         date: format(date, 'MMM d, yyyy'),
-        subscribers: Math.floor(baseSubscribers * growthFactor),
-        views: Math.floor(baseViews * growthFactor),
-        videos: Math.floor(baseVideos * (0.8 + (index * 0.04))),
+        subscribers: Math.floor(baseSubscribers * factor),
+        views: Math.floor(baseViews * factor),
+        videos: Math.floor(baseVideos * factor),
       };
     });
-  }, [timePeriod, selectedChannel, youtubeAnalytics, channelData]);
+  }, [analyticsHistory, timePeriod, selectedChannel, youtubeAnalytics, channelData]);
 
   // Filter data based on selected channel
   const filteredStats = useMemo(() => {
@@ -239,6 +279,18 @@ const Analytics: React.FC = () => {
               </SelectContent>
             </Select>
           </div>
+          
+          {/* Record Snapshot Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRecordSnapshot}
+            disabled={recordSnapshot.isPending}
+            title="Save current channel stats to database for historical tracking"
+          >
+            <Database className={`w-4 h-4 mr-2 ${recordSnapshot.isPending ? 'animate-pulse' : ''}`} />
+            Record Snapshot
+          </Button>
           
           {/* Refresh Button */}
           {selectedChannel !== 'all' && (
