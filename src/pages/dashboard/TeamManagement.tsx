@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfiles } from '@/hooks/useProfiles';
+import { useChannels } from '@/hooks/useChannels';
 import { 
   useTeams, 
   useAllTeamMembers, 
@@ -8,7 +9,8 @@ import {
   useUpdateTeam, 
   useDeleteTeam, 
   useAddTeamMember, 
-  useRemoveTeamMember 
+  useRemoveTeamMember,
+  useUpdateTeamMemberRole,
 } from '@/hooks/useTeams';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,29 +39,55 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Plus, Trash2, UserPlus, UserMinus, Edit, Search, CheckSquare } from 'lucide-react';
+import { 
+  Users, Plus, Trash2, UserPlus, UserMinus, Edit, Search, 
+  Youtube, FileText, Video, Image, Mic, BarChart3, Settings
+} from 'lucide-react';
 import { format } from 'date-fns';
+
+const ROLE_OPTIONS = [
+  { value: 'script_writer', label: 'Script Writer', icon: FileText, color: 'text-blue-500' },
+  { value: 'video_editor', label: 'Video Editor', icon: Video, color: 'text-purple-500' },
+  { value: 'thumbnail_designer', label: 'Thumbnail Designer', icon: Image, color: 'text-pink-500' },
+  { value: 'voice_over_artist', label: 'Voice Over Artist', icon: Mic, color: 'text-orange-500' },
+  { value: 'seo_specialist', label: 'SEO Specialist', icon: BarChart3, color: 'text-green-500' },
+  { value: 'channel_manager', label: 'Channel Manager', icon: Settings, color: 'text-cyan-500' },
+];
+
+const getRoleConfig = (role: string | null) => {
+  return ROLE_OPTIONS.find(r => r.value === role) || null;
+};
 
 const TeamManagement: React.FC = () => {
   const { role } = useAuth();
   const { data: teams, isLoading: teamsLoading } = useTeams();
   const { data: allMembers } = useAllTeamMembers();
   const { data: profiles } = useProfiles();
+  const { data: channels } = useChannels();
   const createTeam = useCreateTeam();
   const updateTeam = useUpdateTeam();
   const deleteTeam = useDeleteTeam();
   const addMember = useAddTeamMember();
   const removeMember = useRemoveTeamMember();
+  const updateMemberRole = useUpdateTeamMemberRole();
   const { toast } = useToast();
 
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamDescription, setNewTeamDescription] = useState('');
-  const [editingTeam, setEditingTeam] = useState<{ id: string; name: string; description: string } | null>(null);
+  const [newTeamChannelId, setNewTeamChannelId] = useState<string>('');
+  const [editingTeam, setEditingTeam] = useState<{ id: string; name: string; description: string; channel_id: string | null } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
-  const [selectedUsersToAdd, setSelectedUsersToAdd] = useState<string[]>([]);
+  const [selectedUsersToAdd, setSelectedUsersToAdd] = useState<{ userId: string; role: string }[]>([]);
   const [addMembersDialogOpen, setAddMembersDialogOpen] = useState<string | null>(null);
 
   const isAdmin = role === 'admin';
@@ -70,6 +98,11 @@ const TeamManagement: React.FC = () => {
 
   const getMemberProfile = (userId: string) => {
     return profiles?.find(p => p.user_id === userId);
+  };
+
+  const getChannelById = (channelId: string | null) => {
+    if (!channelId) return null;
+    return channels?.find(c => c.id === channelId);
   };
 
   const getAvailableUsers = (teamId: string) => {
@@ -103,6 +136,7 @@ const TeamManagement: React.FC = () => {
       await createTeam.mutateAsync({
         name: newTeamName,
         description: newTeamDescription || undefined,
+        channel_id: newTeamChannelId || undefined,
       });
       toast({
         title: 'Team created',
@@ -110,6 +144,7 @@ const TeamManagement: React.FC = () => {
       });
       setNewTeamName('');
       setNewTeamDescription('');
+      setNewTeamChannelId('');
     } catch (error) {
       toast({
         title: 'Error',
@@ -127,6 +162,7 @@ const TeamManagement: React.FC = () => {
         teamId: editingTeam.id,
         name: editingTeam.name,
         description: editingTeam.description || undefined,
+        channel_id: editingTeam.channel_id,
       });
       toast({
         title: 'Team updated',
@@ -162,8 +198,8 @@ const TeamManagement: React.FC = () => {
     if (selectedUsersToAdd.length === 0) return;
 
     try {
-      for (const userId of selectedUsersToAdd) {
-        await addMember.mutateAsync({ teamId, userId });
+      for (const { userId, role } of selectedUsersToAdd) {
+        await addMember.mutateAsync({ teamId, userId, assignedRole: role || undefined });
       }
       toast({
         title: 'Members added',
@@ -197,23 +233,55 @@ const TeamManagement: React.FC = () => {
     }
   };
 
+  const handleUpdateMemberRole = async (memberId: string, newRole: string) => {
+    try {
+      await updateMemberRole.mutateAsync({ memberId, assignedRole: newRole || null });
+      toast({
+        title: 'Role updated',
+        description: 'Member role has been updated.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update role. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const toggleUserSelection = (userId: string) => {
+    setSelectedUsersToAdd(prev => {
+      const exists = prev.find(u => u.userId === userId);
+      if (exists) {
+        return prev.filter(u => u.userId !== userId);
+      }
+      return [...prev, { userId, role: '' }];
+    });
+  };
+
+  const updateUserRole = (userId: string, role: string) => {
     setSelectedUsersToAdd(prev => 
-      prev.includes(userId) 
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
+      prev.map(u => u.userId === userId ? { ...u, role } : u)
     );
+  };
+
+  const isUserSelected = (userId: string) => {
+    return selectedUsersToAdd.some(u => u.userId === userId);
+  };
+
+  const getUserSelectedRole = (userId: string) => {
+    return selectedUsersToAdd.find(u => u.userId === userId)?.role || '';
   };
 
   const handleSelectAll = (teamId: string) => {
     const availableUsers = getFilteredAvailableUsers(teamId);
     const allIds = availableUsers.map(u => u.user_id);
-    const allSelected = allIds.every(id => selectedUsersToAdd.includes(id));
+    const allSelected = allIds.every(id => isUserSelected(id));
     
     if (allSelected) {
       setSelectedUsersToAdd([]);
     } else {
-      setSelectedUsersToAdd(allIds);
+      setSelectedUsersToAdd(allIds.map(userId => ({ userId, role: '' })));
     }
   };
 
@@ -233,6 +301,7 @@ const TeamManagement: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {teams?.map((team) => {
             const members = getTeamMembers(team.id);
+            const channel = getChannelById(team.channel_id);
             return (
               <Card key={team.id} className="glass-card">
                 <CardHeader>
@@ -240,6 +309,12 @@ const TeamManagement: React.FC = () => {
                     <Users className="w-5 h-5 text-primary" />
                     {team.name}
                   </CardTitle>
+                  {channel && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <Youtube className="w-4 h-4 text-destructive" />
+                      <span className="text-sm text-muted-foreground">{channel.channel_name}</span>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent>
                   {team.description && (
@@ -249,23 +324,29 @@ const TeamManagement: React.FC = () => {
                     <Badge variant="secondary">{members.length} members</Badge>
                   </div>
                   <div className="mt-4 space-y-2">
-                    {members.slice(0, 5).map((member) => {
+                    {members.map((member) => {
                       const profile = getMemberProfile(member.user_id);
+                      const roleConfig = getRoleConfig(member.assigned_role);
                       return (
-                        <div key={member.id} className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={profile?.avatar_url || ''} />
-                            <AvatarFallback className="text-xs">
-                              {profile?.full_name?.charAt(0) || '?'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm">{profile?.full_name || 'Unknown'}</span>
+                        <div key={member.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={profile?.avatar_url || ''} />
+                              <AvatarFallback className="text-xs">
+                                {profile?.full_name?.charAt(0) || '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{profile?.full_name || 'Unknown'}</span>
+                          </div>
+                          {roleConfig && (
+                            <Badge variant="outline" className="flex items-center gap-1">
+                              <roleConfig.icon className={`w-3 h-3 ${roleConfig.color}`} />
+                              <span className="text-xs">{roleConfig.label}</span>
+                            </Badge>
+                          )}
                         </div>
                       );
                     })}
-                    {members.length > 5 && (
-                      <p className="text-sm text-muted-foreground">+{members.length - 5} more</p>
-                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -283,7 +364,7 @@ const TeamManagement: React.FC = () => {
         <div>
           <h1 className="text-3xl font-display font-bold">Team Management</h1>
           <p className="text-muted-foreground mt-1">
-            Create and manage teams for your candidates.
+            Create teams, assign channels, and define member roles.
           </p>
         </div>
         <Dialog>
@@ -305,6 +386,25 @@ const TeamManagement: React.FC = () => {
                   value={newTeamName}
                   onChange={(e) => setNewTeamName(e.target.value)}
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Assign Channel</label>
+                <Select value={newTeamChannelId} onValueChange={setNewTeamChannelId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a channel to manage..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No channel assigned</SelectItem>
+                    {channels?.map((channel) => (
+                      <SelectItem key={channel.id} value={channel.id}>
+                        <div className="flex items-center gap-2">
+                          <Youtube className="w-4 h-4 text-destructive" />
+                          {channel.channel_name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Description (Optional)</label>
@@ -375,14 +475,14 @@ const TeamManagement: React.FC = () => {
         <Card className="glass-card">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-info/10 flex items-center justify-center">
-                <Users className="w-6 h-6 text-info" />
+              <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center">
+                <Youtube className="w-6 h-6 text-destructive" />
               </div>
               <div>
                 <p className="text-2xl font-bold">
-                  {profiles?.filter(p => p.kyc_status === 'approved').length || 0}
+                  {teams?.filter(t => t.channel_id).length || 0}
                 </p>
-                <p className="text-sm text-muted-foreground">Available Members</p>
+                <p className="text-sm text-muted-foreground">Channels Assigned</p>
               </div>
             </div>
           </CardContent>
@@ -403,18 +503,19 @@ const TeamManagement: React.FC = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {filteredTeams?.map((team) => {
             const members = getTeamMembers(team.id);
             const availableUsers = getAvailableUsers(team.id);
             const filteredAvailableUsers = getFilteredAvailableUsers(team.id);
             const allFilteredSelected = filteredAvailableUsers.length > 0 && 
-              filteredAvailableUsers.every(u => selectedUsersToAdd.includes(u.user_id));
+              filteredAvailableUsers.every(u => isUserSelected(u.user_id));
+            const channel = getChannelById(team.channel_id);
             
             return (
               <Card key={team.id} className="glass-card">
                 <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                  <div>
+                  <div className="flex-1">
                     <CardTitle className="flex items-center gap-2">
                       <Users className="w-5 h-5 text-primary" />
                       {team.name}
@@ -422,6 +523,12 @@ const TeamManagement: React.FC = () => {
                     <p className="text-xs text-muted-foreground mt-1">
                       Created {format(new Date(team.created_at), 'MMM d, yyyy')}
                     </p>
+                    {channel && (
+                      <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-destructive/10">
+                        <Youtube className="w-4 h-4 text-destructive" />
+                        <span className="text-sm font-medium">{channel.channel_name}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     <Dialog>
@@ -433,7 +540,8 @@ const TeamManagement: React.FC = () => {
                           onClick={() => setEditingTeam({ 
                             id: team.id, 
                             name: team.name, 
-                            description: team.description || '' 
+                            description: team.description || '',
+                            channel_id: team.channel_id,
                           })}
                         >
                           <Edit className="w-4 h-4" />
@@ -452,6 +560,30 @@ const TeamManagement: React.FC = () => {
                                 prev ? { ...prev, name: e.target.value } : null
                               )}
                             />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Assign Channel</label>
+                            <Select 
+                              value={editingTeam?.channel_id || ''} 
+                              onValueChange={(value) => setEditingTeam(prev => 
+                                prev ? { ...prev, channel_id: value || null } : null
+                              )}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a channel..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="">No channel assigned</SelectItem>
+                                {channels?.map((ch) => (
+                                  <SelectItem key={ch.id} value={ch.id}>
+                                    <div className="flex items-center gap-2">
+                                      <Youtube className="w-4 h-4 text-destructive" />
+                                      {ch.channel_name}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                           <div className="space-y-2">
                             <label className="text-sm font-medium">Description</label>
@@ -519,10 +651,10 @@ const TeamManagement: React.FC = () => {
                       <DialogTrigger asChild>
                         <Button size="sm" variant="outline">
                           <UserPlus className="w-4 h-4 mr-1" />
-                          Add
+                          Add Members
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-md">
+                      <DialogContent className="max-w-lg">
                         <DialogHeader>
                           <DialogTitle>Add Members to {team.name}</DialogTitle>
                         </DialogHeader>
@@ -533,7 +665,6 @@ const TeamManagement: React.FC = () => {
                             </p>
                           ) : (
                             <>
-                              {/* Search */}
                               <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                 <Input
@@ -544,7 +675,6 @@ const TeamManagement: React.FC = () => {
                                 />
                               </div>
 
-                              {/* Select All */}
                               <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
                                 <div className="flex items-center gap-2">
                                   <Checkbox
@@ -562,17 +692,19 @@ const TeamManagement: React.FC = () => {
                                 )}
                               </div>
 
-                              {/* User List */}
-                              <ScrollArea className="h-[250px]">
+                              <ScrollArea className="h-[300px]">
                                 <div className="space-y-2">
                                   {filteredAvailableUsers.map((user) => (
                                     <div 
                                       key={user.user_id}
-                                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer"
-                                      onClick={() => toggleUserSelection(user.user_id)}
+                                      className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                                        isUserSelected(user.user_id) 
+                                          ? 'bg-primary/10 border border-primary/30' 
+                                          : 'hover:bg-muted/50'
+                                      }`}
                                     >
                                       <Checkbox
-                                        checked={selectedUsersToAdd.includes(user.user_id)}
+                                        checked={isUserSelected(user.user_id)}
                                         onCheckedChange={() => toggleUserSelection(user.user_id)}
                                       />
                                       <Avatar className="h-8 w-8">
@@ -585,6 +717,26 @@ const TeamManagement: React.FC = () => {
                                         <p className="text-sm font-medium truncate">{user.full_name}</p>
                                         <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                                       </div>
+                                      {isUserSelected(user.user_id) && (
+                                        <Select 
+                                          value={getUserSelectedRole(user.user_id)} 
+                                          onValueChange={(value) => updateUserRole(user.user_id, value)}
+                                        >
+                                          <SelectTrigger className="w-[140px] h-8">
+                                            <SelectValue placeholder="Assign role..." />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {ROLE_OPTIONS.map((r) => (
+                                              <SelectItem key={r.value} value={r.value}>
+                                                <div className="flex items-center gap-2">
+                                                  <r.icon className={`w-3 h-3 ${r.color}`} />
+                                                  <span className="text-xs">{r.label}</span>
+                                                </div>
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      )}
                                     </div>
                                   ))}
                                 </div>
@@ -614,7 +766,7 @@ const TeamManagement: React.FC = () => {
                     </Dialog>
                   </div>
 
-                  <ScrollArea className="h-[200px]">
+                  <ScrollArea className="h-[250px]">
                     <div className="space-y-2">
                       {members.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-4">
@@ -623,15 +775,16 @@ const TeamManagement: React.FC = () => {
                       ) : (
                         members.map((member) => {
                           const profile = getMemberProfile(member.user_id);
+                          const roleConfig = getRoleConfig(member.assigned_role);
                           return (
                             <div 
                               key={member.id} 
-                              className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
+                              className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
                             >
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-8 w-8">
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-10 w-10">
                                   <AvatarImage src={profile?.avatar_url || ''} />
-                                  <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                  <AvatarFallback className="text-sm bg-primary/10 text-primary">
                                     {profile?.full_name?.charAt(0) || '?'}
                                   </AvatarFallback>
                                 </Avatar>
@@ -640,30 +793,50 @@ const TeamManagement: React.FC = () => {
                                   <p className="text-xs text-muted-foreground">{profile?.email}</p>
                                 </div>
                               </div>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive">
-                                    <UserMinus className="w-4 h-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Remove Member</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to remove {profile?.full_name} from this team?
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      onClick={() => handleRemoveMember(team.id, member.user_id)}
-                                    >
-                                      Remove
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                              <div className="flex items-center gap-2">
+                                <Select 
+                                  value={member.assigned_role || ''} 
+                                  onValueChange={(value) => handleUpdateMemberRole(member.id, value)}
+                                >
+                                  <SelectTrigger className="w-[150px] h-8">
+                                    <SelectValue placeholder="Assign role..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {ROLE_OPTIONS.map((r) => (
+                                      <SelectItem key={r.value} value={r.value}>
+                                        <div className="flex items-center gap-2">
+                                          <r.icon className={`w-3 h-3 ${r.color}`} />
+                                          <span className="text-xs">{r.label}</span>
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive">
+                                      <UserMinus className="w-4 h-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Remove Member</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to remove {profile?.full_name} from this team?
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        onClick={() => handleRemoveMember(team.id, member.user_id)}
+                                      >
+                                        Remove
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
                             </div>
                           );
                         })

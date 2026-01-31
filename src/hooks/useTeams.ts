@@ -6,6 +6,7 @@ export interface Team {
   id: string;
   name: string;
   description: string | null;
+  channel_id: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -15,6 +16,7 @@ export interface TeamMember {
   id: string;
   team_id: string;
   user_id: string;
+  assigned_role: string | null;
   joined_at: string;
 }
 
@@ -70,12 +72,13 @@ export const useCreateTeam = () => {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ name, description }: { name: string; description?: string }) => {
+    mutationFn: async ({ name, description, channel_id }: { name: string; description?: string; channel_id?: string }) => {
       const { data, error } = await supabase
         .from('teams')
         .insert({
           name,
           description,
+          channel_id: channel_id || null,
           created_by: user!.id,
         })
         .select()
@@ -97,15 +100,17 @@ export const useUpdateTeam = () => {
     mutationFn: async ({ 
       teamId, 
       name, 
-      description 
+      description,
+      channel_id,
     }: { 
       teamId: string; 
       name: string; 
       description?: string;
+      channel_id?: string | null;
     }) => {
       const { error } = await supabase
         .from('teams')
-        .update({ name, description })
+        .update({ name, description, channel_id })
         .eq('id', teamId);
 
       if (error) throw error;
@@ -140,10 +145,33 @@ export const useAddTeamMember = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ teamId, userId }: { teamId: string; userId: string }) => {
+    mutationFn: async ({ teamId, userId, assignedRole }: { teamId: string; userId: string; assignedRole?: string }) => {
       const { error } = await supabase
         .from('team_members')
-        .insert({ team_id: teamId, user_id: userId });
+        .insert({ 
+          team_id: teamId, 
+          user_id: userId,
+          assigned_role: assignedRole || null,
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
+      queryClient.invalidateQueries({ queryKey: ['all-team-members'] });
+    },
+  });
+};
+
+export const useUpdateTeamMemberRole = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ memberId, assignedRole }: { memberId: string; assignedRole: string | null }) => {
+      const { error } = await supabase
+        .from('team_members')
+        .update({ assigned_role: assignedRole })
+        .eq('id', memberId);
 
       if (error) throw error;
     },

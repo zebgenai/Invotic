@@ -494,18 +494,21 @@ export type Database = {
       }
       team_members: {
         Row: {
+          assigned_role: string | null
           id: string
           joined_at: string
           team_id: string
           user_id: string
         }
         Insert: {
+          assigned_role?: string | null
           id?: string
           joined_at?: string
           team_id: string
           user_id: string
         }
         Update: {
+          assigned_role?: string | null
           id?: string
           joined_at?: string
           team_id?: string
@@ -523,6 +526,7 @@ export type Database = {
       }
       teams: {
         Row: {
+          channel_id: string | null
           created_at: string
           created_by: string
           description: string | null
@@ -531,6 +535,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          channel_id?: string | null
           created_at?: string
           created_by: string
           description?: string | null
@@ -539,6 +544,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          channel_id?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
@@ -546,7 +552,15 @@ export type Database = {
           name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "teams_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_channels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_badges: {
         Row: {
