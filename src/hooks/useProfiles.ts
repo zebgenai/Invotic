@@ -114,27 +114,26 @@ export const useDeleteUserProfile = () => {
 
   return useMutation({
     mutationFn: async ({ userId }: { userId: string }) => {
-      // Delete the user's profile - this will cascade to related data
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('user_id', userId);
+      // Call the edge function to fully delete the user
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: userId },
+      });
 
-      if (profileError) throw profileError;
-
-      // Delete the user's role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
-
-      if (roleError) {
-        console.error('Failed to delete user role:', roleError);
+      if (error) {
+        throw new Error(error.message || 'Failed to delete user');
       }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to delete user');
+      }
+
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
       queryClient.invalidateQueries({ queryKey: ['user-roles'] });
+      queryClient.invalidateQueries({ queryKey: ['channels'] });
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
     },
   });
 };
