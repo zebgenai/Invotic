@@ -9,7 +9,7 @@ interface AuthContextType {
   profile: Profile | null;
   role: AppRole | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string, specialty?: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string, specialty?: string, specialties?: string[]) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -108,10 +108,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
-  const signUp = async (email: string, password: string, fullName: string, specialty?: string) => {
+  const signUp = async (email: string, password: string, fullName: string, specialty?: string, specialties?: string[]) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -119,9 +119,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         data: {
           full_name: fullName,
           specialty: specialty || null,
+          specialties: specialties || [],
         },
       },
     });
+
+    // After successful signup, update the profile with specialties array
+    if (!error && data.user && specialties && specialties.length > 0) {
+      // Wait a moment for the trigger to create the profile
+      setTimeout(async () => {
+        await supabase
+          .from('profiles')
+          .update({ specialties })
+          .eq('user_id', data.user!.id);
+      }, 1000);
+    }
 
     return { error: error as Error | null };
   };

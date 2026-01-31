@@ -21,8 +21,24 @@ import {
   Image as ImageIcon,
   X,
   Mail,
-  Phone
+  Phone,
+  PenLine,
+  Video,
+  Image,
+  Mic,
+  Search,
+  Users,
+  Briefcase
 } from 'lucide-react';
+
+const specialtyConfig = {
+  script_writer: { label: 'Script Writer', icon: PenLine, color: 'bg-blue-500/10 text-blue-500 border-blue-500/30' },
+  video_editor: { label: 'Video Editor', icon: Video, color: 'bg-purple-500/10 text-purple-500 border-purple-500/30' },
+  thumbnail_designer: { label: 'Thumbnail Designer', icon: Image, color: 'bg-pink-500/10 text-pink-500 border-pink-500/30' },
+  voice_over_artist: { label: 'Voice Over Artist', icon: Mic, color: 'bg-orange-500/10 text-orange-500 border-orange-500/30' },
+  seo_specialist: { label: 'SEO Specialist', icon: Search, color: 'bg-green-500/10 text-green-500 border-green-500/30' },
+  channel_manager: { label: 'Channel Manager', icon: Users, color: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30' },
+} as const;
 
 interface SelectedDocument {
   file: File | null;
@@ -248,6 +264,37 @@ const KYCSubmission: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Professional Skills Card */}
+      {(profile?.specialties && profile.specialties.length > 0) || profile?.specialty ? (
+        <Card className="glass-card overflow-hidden">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Briefcase className="w-5 h-5 text-primary" />
+              Professional Skills
+            </CardTitle>
+            <CardDescription>Your selected areas of expertise</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-3">
+              {(profile?.specialties || (profile?.specialty ? [profile.specialty] : [])).map((specialty) => {
+                const config = specialtyConfig[specialty as keyof typeof specialtyConfig];
+                if (!config) return null;
+                const Icon = config.icon;
+                return (
+                  <div
+                    key={specialty}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full border ${config.color} transition-all hover:scale-105`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span className="font-medium text-sm">{config.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Upload Section - Only show if not approved */}
       {profile?.kyc_status !== 'approved' && (

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useResources, useCreateResource, useDeleteResource } from '@/hooks/useResources';
+import { useResources, useCreateResource, useUpdateResource, useDeleteResource } from '@/hooks/useResources';
 import { useAuth } from '@/contexts/AuthContext';
+import { Resource } from '@/types/database';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,10 +30,10 @@ import {
   Video,
   Image,
   File,
-  Download,
   Trash2,
   Search,
   ExternalLink,
+  Edit,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -40,12 +41,21 @@ const Resources: React.FC = () => {
   const { role } = useAuth();
   const { data: resources, isLoading } = useResources();
   const createResource = useCreateResource();
+  const updateResource = useUpdateResource();
   const deleteResource = useDeleteResource();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    file_url: '',
+    file_type: 'document',
+  });
+  const [editingResource, setEditingResource] = useState<Resource | null>(null);
+  const [editFormData, setEditFormData] = useState({
     title: '',
     description: '',
     file_url: '',
@@ -78,6 +88,49 @@ const Resources: React.FC = () => {
       toast({
         title: 'Error',
         description: 'Failed to add resource. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleEdit = (resource: Resource) => {
+    setEditingResource(resource);
+    setEditFormData({
+      title: resource.title,
+      description: resource.description || '',
+      file_url: resource.file_url,
+      file_type: resource.file_type,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!editingResource || !editFormData.title || !editFormData.file_url) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all required fields.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await updateResource.mutateAsync({
+        id: editingResource.id,
+        ...editFormData,
+      });
+      toast({
+        title: 'Resource updated!',
+        description: 'The resource has been updated successfully.',
+      });
+      setIsEditDialogOpen(false);
+      setEditingResource(null);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update resource. Please try again.',
         variant: 'destructive',
       });
     }
@@ -283,6 +336,62 @@ const Resources: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="glass-card">
+          <DialogHeader>
+            <DialogTitle>Edit Resource</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Title *</Label>
+              <Input
+                placeholder="Enter resource title"
+                value={editFormData.title}
+                onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                placeholder="Describe the resource..."
+                value={editFormData.description}
+                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>File URL *</Label>
+              <Input
+                placeholder="https://example.com/file.pdf"
+                value={editFormData.file_url}
+                onChange={(e) => setEditFormData({ ...editFormData, file_url: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select
+                value={editFormData.file_type}
+                onValueChange={(value) => setEditFormData({ ...editFormData, file_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="document">Document</SelectItem>
+                  <SelectItem value="video">Video</SelectItem>
+                  <SelectItem value="image">Image</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="submit" className="w-full" disabled={updateResource.isPending}>
+              {updateResource.isPending ? 'Updating...' : 'Update Resource'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Resources Grid */}
       {isLoading ? (
         <div className="text-center py-12">
@@ -332,14 +441,23 @@ const Resources: React.FC = () => {
                     Open
                   </Button>
                   {canManage && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="text-destructive hover:bg-destructive/10"
-                      onClick={() => handleDelete(resource.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleEdit(resource)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDelete(resource.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </>
                   )}
                 </div>
               </CardContent>

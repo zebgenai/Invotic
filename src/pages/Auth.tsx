@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Loader2, Sparkles, ArrowLeft, PenLine, Video, Image, Mic, Search, Users } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Sparkles, ArrowLeft, PenLine, Video, Image, Mic, Search, Users, Check } from 'lucide-react';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
 
@@ -24,7 +24,7 @@ const signUpSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  specialty: z.string().min(1, 'Please select your specialty'),
+  specialties: z.array(z.string()).min(1, 'Please select at least 1 specialty').max(3, 'Maximum 3 specialties allowed'),
 });
 
 const signInSchema = z.object({
@@ -40,13 +40,31 @@ const AuthPage: React.FC = () => {
     fullName: '',
     email: '',
     password: '',
-    specialty: '' as SpecialtyValue | '',
+    specialties: [] as SpecialtyValue[],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { signUp, signIn } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const toggleSpecialty = (value: SpecialtyValue) => {
+    setFormData(prev => {
+      const current = prev.specialties;
+      if (current.includes(value)) {
+        return { ...prev, specialties: current.filter(s => s !== value) };
+      }
+      if (current.length >= 3) {
+        toast({
+          title: 'Maximum reached',
+          description: 'You can select up to 3 specialties.',
+          variant: 'destructive',
+        });
+        return prev;
+      }
+      return { ...prev, specialties: [...current, value] };
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +86,14 @@ const AuthPage: React.FC = () => {
           return;
         }
 
-        const { error } = await signUp(formData.email, formData.password, formData.fullName, formData.specialty);
+        // Pass first specialty for backward compatibility, and all specialties
+        const { error } = await signUp(
+          formData.email, 
+          formData.password, 
+          formData.fullName, 
+          formData.specialties[0],
+          formData.specialties
+        );
         if (error) {
           if (error.message.includes('already registered')) {
             toast({
@@ -186,19 +211,24 @@ const AuthPage: React.FC = () => {
 
             {isSignUp && (
               <div className="space-y-2">
-                <Label>What will you do?</Label>
+                <Label>
+                  What will you do?{' '}
+                  <span className="text-muted-foreground text-xs font-normal">
+                    (Select 1-3)
+                  </span>
+                </Label>
                 <div className="grid grid-cols-2 gap-2">
                   {specialties.map((specialty) => {
                     const Icon = specialty.icon;
-                    const isSelected = formData.specialty === specialty.value;
+                    const isSelected = formData.specialties.includes(specialty.value);
                     return (
                       <button
                         key={specialty.value}
                         type="button"
-                        onClick={() => setFormData({ ...formData, specialty: specialty.value })}
+                        onClick={() => toggleSpecialty(specialty.value)}
                         disabled={loading}
                         className={cn(
-                          "flex items-center gap-2 p-3 rounded-lg border text-left transition-all text-sm",
+                          "relative flex items-center gap-2 p-3 rounded-lg border text-left transition-all text-sm",
                           isSelected
                             ? "border-primary bg-primary/10 text-primary"
                             : "border-border hover:border-primary/50 hover:bg-muted/50"
@@ -206,12 +236,22 @@ const AuthPage: React.FC = () => {
                       >
                         <Icon className="w-4 h-4 shrink-0" />
                         <span className="truncate">{specialty.label}</span>
+                        {isSelected && (
+                          <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="w-3 h-3 text-primary-foreground" />
+                          </div>
+                        )}
                       </button>
                     );
                   })}
                 </div>
-                {errors.specialty && (
-                  <p className="text-sm text-destructive">{errors.specialty}</p>
+                {formData.specialties.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Selected: {formData.specialties.length}/3
+                  </p>
+                )}
+                {errors.specialties && (
+                  <p className="text-sm text-destructive">{errors.specialties}</p>
                 )}
               </div>
             )}
@@ -282,6 +322,7 @@ const AuthPage: React.FC = () => {
                 onClick={() => {
                   setIsSignUp(!isSignUp);
                   setErrors({});
+                  setFormData({ fullName: '', email: '', password: '', specialties: [] });
                 }}
                 className="text-primary hover:underline font-medium"
               >

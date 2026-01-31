@@ -3,6 +3,8 @@ export type KycStatus = 'pending' | 'approved' | 'rejected';
 export type TaskStatus = 'todo' | 'in_progress' | 'completed' | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
+export type UserSpecialty = 'script_writer' | 'video_editor' | 'thumbnail_designer' | 'voice_over_artist' | 'seo_specialist' | 'channel_manager';
+
 export interface Profile {
   id: string;
   user_id: string;
@@ -18,6 +20,8 @@ export interface Profile {
   kyc_gmail: string | null;
   kyc_whatsapp: string | null;
   is_active: boolean;
+  specialty: UserSpecialty | null;
+  specialties: string[] | null;
   created_at: string;
   updated_at: string;
 }
