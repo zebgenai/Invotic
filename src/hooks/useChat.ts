@@ -27,8 +27,13 @@ export const useChatRooms = () => {
 
 export const useMessages = (roomId: string | null) => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [realtimeMessages, setRealtimeMessages] = useState<Message[]>([]);
+
+  // IMPORTANT: keep realtime state scoped to the currently selected room.
+  // Otherwise messages received in a DM can appear when you switch to a group/broadcast.
+  useEffect(() => {
+    setRealtimeMessages([]);
+  }, [roomId]);
 
   const query = useQuery({
     queryKey: ['messages', roomId],
@@ -68,7 +73,17 @@ export const useMessages = (roomId: string | null) => {
           filter: `room_id=eq.${roomId}`,
         },
         (payload) => {
-          setRealtimeMessages((prev) => [...prev, payload.new as Message]);
+          const next = payload.new as Message;
+
+          // Defensive: avoid duplicates and ensure we never mix rooms.
+          // (The channel filter should already guarantee this, but it prevents edge cases
+          // when switching rooms quickly.)
+          if ((next as any).room_id !== roomId) return;
+
+          setRealtimeMessages((prev) => {
+            if (prev.some((m) => m.id === next.id)) return prev;
+            return [...prev, next];
+          });
         }
       )
       .subscribe();
@@ -78,7 +93,14 @@ export const useMessages = (roomId: string | null) => {
     };
   }, [roomId]);
 
-  const allMessages = [...(query.data || []), ...realtimeMessages.filter(
+  const realtimeForRoom = realtimeMessages
+    .filter((m) => (m as any).room_id === roomId)
+    .filter((msg) => {
+      const deletedFor = (msg as any).deleted_for as string[] | null;
+      return !deletedFor || !deletedFor.includes(user?.id || '');
+    });
+
+  const allMessages = [...(query.data || []), ...realtimeForRoom.filter(
     (rm) => !(query.data || []).some((m) => m.id === rm.id)
   )];
 
