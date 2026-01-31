@@ -40,6 +40,7 @@ interface ChatMessageProps {
   playingAudioId: string | null;
   onPlayAudio: (audioUrl: string, messageId: string) => void;
   onDeleteMessage: (messageId: string) => void;
+  onDeleteForMe: (messageId: string) => void;
   isSelectionMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: (messageId: string) => void;
@@ -54,13 +55,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   playingAudioId,
   onPlayAudio,
   onDeleteMessage,
+  onDeleteForMe,
   isSelectionMode = false,
   isSelected = false,
   onToggleSelect,
   canDeleteOwn = true,
 }) => {
-  // User can delete if: they own the message OR they are admin
-  const canDelete = isOwn || isAdmin;
+  // User can delete for everyone if: they own the message OR they are admin
+  const canDeleteForEveryone = isOwn || isAdmin;
 
   return (
     <div
@@ -207,41 +209,44 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           </div>
         </div>
         
-        {/* Delete button - User can delete own messages, Admin can delete any */}
-        {canDelete && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-all text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
-                title={isOwn ? "Delete for everyone" : "Delete message"}
+        {/* Delete button with dropdown for options */}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-all text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
+              title="Delete message"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent className="glass-card">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Message</AlertDialogTitle>
+              <AlertDialogDescription>
+                How would you like to delete this message?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+              <AlertDialogAction
+                onClick={() => onDeleteForMe(message.id)}
+                className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="glass-card">
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Message</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {isOwn 
-                    ? "This message will be deleted for everyone in this chat. This action cannot be undone."
-                    : "Are you sure you want to delete this message? This action cannot be undone."
-                  }
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                Delete for Me
+              </AlertDialogAction>
+              {canDeleteForEveryone && (
                 <AlertDialogAction
                   onClick={() => onDeleteMessage(message.id)}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  {isOwn ? "Delete for Everyone" : "Delete"}
+                  Delete for Everyone
                 </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
+              )}
+              <AlertDialogCancel className="w-full mt-0">Cancel</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

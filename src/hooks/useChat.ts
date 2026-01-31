@@ -42,7 +42,14 @@ export const useMessages = (roomId: string | null) => {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      return data as Message[];
+      
+      // Filter out messages deleted for current user
+      const filteredMessages = (data as Message[]).filter(msg => {
+        const deletedFor = (msg as any).deleted_for as string[] | null;
+        return !deletedFor || !deletedFor.includes(user?.id || '');
+      });
+      
+      return filteredMessages;
     },
     enabled: !!user && !!roomId,
   });
@@ -244,6 +251,39 @@ export const useDeleteMessage = () => {
       const { error } = await supabase
         .from('messages')
         .delete()
+        .eq('id', messageId);
+
+      if (error) throw error;
+      return { roomId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['messages', data.roomId] });
+    },
+  });
+};
+
+// Delete message for current user only (hide from their view)
+export const useDeleteMessageForMe = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ messageId, roomId }: { messageId: string; roomId: string }) => {
+      // Get current deleted_for array
+      const { data: message, error: fetchError } = await supabase
+        .from('messages')
+        .select('deleted_for')
+        .eq('id', messageId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const currentDeletedFor = (message?.deleted_for as string[]) || [];
+      const updatedDeletedFor = [...currentDeletedFor, user?.id].filter(Boolean);
+
+      const { error } = await supabase
+        .from('messages')
+        .update({ deleted_for: updatedDeletedFor })
         .eq('id', messageId);
 
       if (error) throw error;
