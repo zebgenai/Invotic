@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useProfiles, useUpdateKycStatus, useUpdateUserRole, useUserRoles, useDeleteKyc, useDeleteUserProfile } from '@/hooks/useProfiles';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -39,9 +40,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Shield, Users, CheckCircle, XCircle, Clock, Eye, Download, FileText, Image as ImageIcon, Trash2, Mail, Phone, UserX } from 'lucide-react';
+import { Search, Shield, Users, CheckCircle, XCircle, Clock, Eye, Download, FileText, Image as ImageIcon, Trash2, Mail, Phone, UserX, CheckSquare } from 'lucide-react';
 import { format } from 'date-fns';
-import { AppRole, KycStatus } from '@/types/database';
+import { AppRole, KycStatus, Profile } from '@/types/database';
 
 const UserManagement: React.FC = () => {
   const { data: profiles, isLoading } = useProfiles();
@@ -55,6 +56,8 @@ const UserManagement: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [kycFilter, setKycFilter] = useState<string>('all');
   const [viewingDocument, setViewingDocument] = useState<{ url: string; name: string; type: string } | null>(null);
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   const getDocumentUrl = (filePath: string) => {
     const { data } = supabase.storage.from('kyc-documents').getPublicUrl(filePath);
@@ -182,7 +185,141 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const filteredProfiles = profiles?.filter((profile) => {
+  // Bulk selection helpers
+  const toggleUserSelection = (userId: string) => {
+    const newSelected = new Set(selectedUsers);
+    if (newSelected.has(userId)) {
+      newSelected.delete(userId);
+    } else {
+      newSelected.add(userId);
+    }
+    setSelectedUsers(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (!filteredProfiles) return;
+    
+    const selectableUsers = filteredProfiles.filter(p => p.email !== 'atifcyber7@gmail.com');
+    
+    if (selectedUsers.size === selectableUsers.length) {
+      setSelectedUsers(new Set());
+    } else {
+      setSelectedUsers(new Set(selectableUsers.map(p => p.user_id)));
+    }
+  };
+
+  const getSelectedProfiles = (): Profile[] => {
+    if (!profiles) return [];
+    return profiles.filter(p => selectedUsers.has(p.user_id));
+  };
+
+  const handleBulkApprove = async () => {
+    const selected = getSelectedProfiles();
+    const pendingUsers = selected.filter(p => p.kyc_status === 'pending');
+    
+    if (pendingUsers.length === 0) {
+      toast({
+        title: 'No pending users',
+        description: 'None of the selected users have pending KYC status.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      for (const profile of pendingUsers) {
+        await updateKyc.mutateAsync({ userId: profile.user_id, status: 'approved' });
+      }
+      toast({
+        title: 'Bulk approval complete',
+        description: `${pendingUsers.length} user(s) have been approved.`,
+      });
+      setSelectedUsers(new Set());
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to approve some users. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkReject = async () => {
+    const selected = getSelectedProfiles();
+    const pendingUsers = selected.filter(p => p.kyc_status === 'pending');
+    
+    if (pendingUsers.length === 0) {
+      toast({
+        title: 'No pending users',
+        description: 'None of the selected users have pending KYC status.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      for (const profile of pendingUsers) {
+        await updateKyc.mutateAsync({ userId: profile.user_id, status: 'rejected' });
+      }
+      toast({
+        title: 'Bulk rejection complete',
+        description: `${pendingUsers.length} user(s) have been rejected.`,
+      });
+      setSelectedUsers(new Set());
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to reject some users. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkDeleteKyc = async () => {
+    const selected = getSelectedProfiles();
+    const usersWithKyc = selected.filter(p => p.kyc_document_url || p.kyc_status !== 'pending');
+    
+    if (usersWithKyc.length === 0) {
+      toast({
+        title: 'No KYC data to delete',
+        description: 'None of the selected users have KYC data.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      for (const profile of usersWithKyc) {
+        await deleteKyc.mutateAsync({ 
+          userId: profile.user_id, 
+          documentUrl: profile.kyc_document_url,
+          documentBackUrl: profile.kyc_document_back_url 
+        });
+      }
+      toast({
+        title: 'Bulk delete complete',
+        description: `KYC data deleted for ${usersWithKyc.length} user(s).`,
+      });
+      setSelectedUsers(new Set());
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete KYC for some users. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const filteredProfiles = useMemo(() => profiles?.filter((profile) => {
     const matchesSearch =
       profile.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       profile.email.toLowerCase().includes(searchQuery.toLowerCase());
@@ -192,7 +329,15 @@ const UserManagement: React.FC = () => {
     const matchesKyc = kycFilter === 'all' || profile.kyc_status === kycFilter;
 
     return matchesSearch && matchesRole && matchesKyc;
-  });
+  }), [profiles, searchQuery, roleFilter, kycFilter, userRoles]);
+
+  const selectableUsers = useMemo(() => 
+    filteredProfiles?.filter(p => p.email !== 'atifcyber7@gmail.com') || [], 
+    [filteredProfiles]
+  );
+  
+  const allSelected = selectableUsers.length > 0 && selectedUsers.size === selectableUsers.length;
+  const someSelected = selectedUsers.size > 0 && selectedUsers.size < selectableUsers.length;
 
   const getKycBadge = (status: KycStatus) => {
     switch (status) {
@@ -335,8 +480,112 @@ const UserManagement: React.FC = () => {
 
       {/* Users Table */}
       <Card className="glass-card">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Users ({filteredProfiles?.length || 0})</CardTitle>
+          {selectedUsers.size > 0 && (
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="font-normal">
+                <CheckSquare className="w-3 h-3 mr-1" />
+                {selectedUsers.size} selected
+              </Badge>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-success border-success/50 hover:bg-success/10"
+                    disabled={bulkActionLoading}
+                  >
+                    Approve Selected
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Bulk Approve KYC</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will approve KYC for all selected users with pending status. Continue?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-success text-success-foreground hover:bg-success/90"
+                      onClick={handleBulkApprove}
+                    >
+                      Approve All
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-warning border-warning/50 hover:bg-warning/10"
+                    disabled={bulkActionLoading}
+                  >
+                    Reject Selected
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Bulk Reject KYC</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will reject KYC for all selected users with pending status. Continue?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-warning text-warning-foreground hover:bg-warning/90"
+                      onClick={handleBulkReject}
+                    >
+                      Reject All
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                    disabled={bulkActionLoading}
+                  >
+                    <Trash2 className="w-3 h-3 mr-1" />
+                    Delete KYC
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Bulk Delete KYC</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete KYC documents and reset status for all selected users. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={handleBulkDeleteKyc}
+                    >
+                      Delete All
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelectedUsers(new Set())}
+                disabled={bulkActionLoading}
+              >
+                Clear
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -348,6 +597,14 @@ const UserManagement: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={allSelected}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Select all users"
+                        className={someSelected ? 'data-[state=checked]:bg-primary/50' : ''}
+                      />
+                    </TableHead>
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>KYC Status</TableHead>
@@ -359,7 +616,18 @@ const UserManagement: React.FC = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredProfiles?.map((profile) => (
-                    <TableRow key={profile.id}>
+                    <TableRow key={profile.id} className={selectedUsers.has(profile.user_id) ? 'bg-primary/5' : ''}>
+                      <TableCell>
+                        {profile.email !== 'atifcyber7@gmail.com' ? (
+                          <Checkbox
+                            checked={selectedUsers.has(profile.user_id)}
+                            onCheckedChange={() => toggleUserSelection(profile.user_id)}
+                            aria-label={`Select ${profile.full_name}`}
+                          />
+                        ) : (
+                          <div className="w-4" />
+                        )}
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar>
