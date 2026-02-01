@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import ImageCropper from '@/components/ImageCropper';
 import { 
@@ -28,7 +29,9 @@ import {
   Mic,
   Search,
   Users,
-  Briefcase
+  Briefcase,
+  FileText,
+  BookOpen
 } from 'lucide-react';
 
 const specialtyConfig = {
@@ -40,6 +43,8 @@ const specialtyConfig = {
   channel_manager: { label: 'Channel Manager', icon: Users, color: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30' },
 } as const;
 
+type DocumentType = 'cnic' | 'passport' | 'form_b';
+
 interface SelectedDocument {
   file: File | null;
   previewUrl: string | null;
@@ -47,13 +52,38 @@ interface SelectedDocument {
   croppedUrl: string | null;
 }
 
+const documentTypeConfig = {
+  cnic: {
+    label: 'CNIC',
+    description: 'National Identity Card (Front & Back)',
+    icon: CreditCard,
+    requiresBack: true,
+    aspectRatio: 1.586,
+  },
+  passport: {
+    label: 'Passport',
+    description: 'Valid Passport (Photo Page)',
+    icon: BookOpen,
+    requiresBack: false,
+    aspectRatio: 0.707, // A4/Passport page aspect ratio
+  },
+  form_b: {
+    label: 'Form B',
+    description: 'Child Registration Certificate',
+    icon: FileText,
+    requiresBack: false,
+    aspectRatio: 0.707,
+  },
+};
+
 const KYCSubmission: React.FC = () => {
   const { profile, user, refreshProfile } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [gmail, setGmail] = useState(profile?.kyc_gmail || '');
   const [whatsapp, setWhatsapp] = useState(profile?.kyc_whatsapp || '');
+  const [documentType, setDocumentType] = useState<DocumentType>('cnic');
   
-  // Front side document
+  // Front side document (or single document for passport/form_b)
   const [frontDoc, setFrontDoc] = useState<SelectedDocument>({
     file: null,
     previewUrl: null,
@@ -63,7 +93,7 @@ const KYCSubmission: React.FC = () => {
   const frontInputRef = useRef<HTMLInputElement>(null);
   const [showFrontCropper, setShowFrontCropper] = useState(false);
   
-  // Back side document
+  // Back side document (only for CNIC)
   const [backDoc, setBackDoc] = useState<SelectedDocument>({
     file: null,
     previewUrl: null,
@@ -72,6 +102,15 @@ const KYCSubmission: React.FC = () => {
   });
   const backInputRef = useRef<HTMLInputElement>(null);
   const [showBackCropper, setShowBackCropper] = useState(false);
+
+  const currentDocConfig = documentTypeConfig[documentType];
+
+  const handleDocumentTypeChange = (type: DocumentType) => {
+    setDocumentType(type);
+    // Clear documents when switching type
+    clearFrontSelection();
+    clearBackSelection();
+  };
 
   const handleFileSelect = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -137,7 +176,13 @@ const KYCSubmission: React.FC = () => {
   };
 
   const handleUpload = async () => {
-    if (!frontDoc.croppedBlob || !backDoc.croppedBlob || !user) return;
+    if (!frontDoc.croppedBlob || !user) return;
+    
+    // For CNIC, back is also required
+    if (currentDocConfig.requiresBack && !backDoc.croppedBlob) {
+      toast.error('Please upload both front and back sides of your CNIC');
+      return;
+    }
 
     // Validate Gmail
     if (!gmail.trim()) {
@@ -163,21 +208,25 @@ const KYCSubmission: React.FC = () => {
     try {
       const timestamp = Date.now();
       
-      // Upload front side
-      const frontFileName = `${user.id}/${timestamp}_front.jpg`;
+      // Upload front side / main document
+      const frontFileName = `${user.id}/${timestamp}_${documentType}_front.jpg`;
       const { error: frontUploadError } = await supabase.storage
         .from('kyc-documents')
         .upload(frontFileName, frontDoc.croppedBlob);
       if (frontUploadError) throw frontUploadError;
 
-      // Upload back side
-      const backFileName = `${user.id}/${timestamp}_back.jpg`;
-      const { error: backUploadError } = await supabase.storage
-        .from('kyc-documents')
-        .upload(backFileName, backDoc.croppedBlob);
-      if (backUploadError) throw backUploadError;
+      let backFileName: string | null = null;
+      
+      // Upload back side only for CNIC
+      if (currentDocConfig.requiresBack && backDoc.croppedBlob) {
+        backFileName = `${user.id}/${timestamp}_${documentType}_back.jpg`;
+        const { error: backUploadError } = await supabase.storage
+          .from('kyc-documents')
+          .upload(backFileName, backDoc.croppedBlob);
+        if (backUploadError) throw backUploadError;
+      }
 
-      // Update profile with both document URLs and contact info
+      // Update profile with document URLs and contact info
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
@@ -226,14 +275,32 @@ const KYCSubmission: React.FC = () => {
           title: 'KYC Pending',
           description: profile?.kyc_document_url 
             ? 'Your documents are being reviewed. This usually takes 24-48 hours.'
-            : 'Please upload both sides of your CNIC to verify your identity.',
+            : 'Please upload your identity document to verify your identity.',
           badgeClass: 'badge-warning',
         };
     }
   };
 
   const statusInfo = getStatusInfo();
-  const canSubmit = frontDoc.croppedBlob && backDoc.croppedBlob && gmail.trim() && whatsapp.trim();
+  
+  // Check if can submit based on document type
+  const canSubmit = frontDoc.croppedBlob && 
+    (!currentDocConfig.requiresBack || backDoc.croppedBlob) && 
+    gmail.trim() && 
+    whatsapp.trim();
+
+  const getDocumentLabel = () => {
+    switch (documentType) {
+      case 'cnic':
+        return { front: 'Front of CNIC', back: 'Back of CNIC' };
+      case 'passport':
+        return { front: 'Passport Photo Page', back: '' };
+      case 'form_b':
+        return { front: 'Form B Document', back: '' };
+    }
+  };
+
+  const docLabels = getDocumentLabel();
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -302,27 +369,58 @@ const KYCSubmission: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Upload className="w-5 h-5" />
-              Upload CNIC Documents
+              Upload Identity Document
             </CardTitle>
             <CardDescription>
-              Upload clear photos of both sides of your National ID Card (CNIC)
+              Choose your document type and upload clear photos
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Document Info */}
-            <div className="flex items-center gap-3 p-4 border border-border rounded-lg bg-secondary/30">
-              <CreditCard className="w-8 h-8 text-primary" />
-              <div>
-                <p className="font-medium">National ID Card (CNIC)</p>
-                <p className="text-sm text-muted-foreground">Upload front and back sides separately</p>
-              </div>
+            {/* Document Type Selection */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Select Document Type <span className="text-destructive">*</span></Label>
+              <RadioGroup 
+                value={documentType} 
+                onValueChange={(value) => handleDocumentTypeChange(value as DocumentType)}
+                className="grid grid-cols-1 md:grid-cols-3 gap-3"
+              >
+                {(Object.entries(documentTypeConfig) as [DocumentType, typeof documentTypeConfig[DocumentType]][]).map(([type, config]) => {
+                  const Icon = config.icon;
+                  const isSelected = documentType === type;
+                  return (
+                    <div key={type}>
+                      <RadioGroupItem value={type} id={type} className="sr-only" />
+                      <Label
+                        htmlFor={type}
+                        className={`
+                          flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all
+                          ${isSelected 
+                            ? 'border-primary bg-primary/10 shadow-md' 
+                            : 'border-border hover:border-primary/50 hover:bg-secondary/50'
+                          }
+                        `}
+                      >
+                        <div className={`p-3 rounded-full ${isSelected ? 'bg-primary/20' : 'bg-secondary'}`}>
+                          <Icon className={`w-6 h-6 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                        </div>
+                        <div className="text-center">
+                          <p className={`font-semibold ${isSelected ? 'text-primary' : ''}`}>{config.label}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{config.description}</p>
+                        </div>
+                      </Label>
+                    </div>
+                  );
+                })}
+              </RadioGroup>
             </div>
 
-            {/* Front and Back Upload Areas */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Front Side Upload */}
+            {/* Document Upload Areas */}
+            <div className={`grid grid-cols-1 ${currentDocConfig.requiresBack ? 'md:grid-cols-2' : ''} gap-4`}>
+              {/* Front Side / Main Document Upload */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Front Side <span className="text-destructive">*</span></Label>
+                <Label className="text-sm font-medium">
+                  {currentDocConfig.requiresBack ? 'Front Side' : 'Document'} <span className="text-destructive">*</span>
+                </Label>
                 <div 
                   className={`
                     border-2 border-dashed rounded-xl p-4 text-center transition-all min-h-[180px] flex flex-col items-center justify-center
@@ -337,7 +435,7 @@ const KYCSubmission: React.FC = () => {
                         </div>
                       </div>
                       <div>
-                        <p className="text-sm font-medium">Front of CNIC</p>
+                        <p className="text-sm font-medium">{docLabels.front}</p>
                         <p className="text-xs text-muted-foreground">JPG or PNG (max 5MB)</p>
                       </div>
                       <input
@@ -360,12 +458,12 @@ const KYCSubmission: React.FC = () => {
                     <div className="space-y-3 w-full">
                       <img 
                         src={frontDoc.croppedUrl} 
-                        alt="Front side preview" 
+                        alt="Document preview" 
                         className="max-h-28 rounded-lg object-contain mx-auto"
                       />
                       <div className="flex items-center justify-center gap-2">
                         <FileCheck className="w-4 h-4 text-green-500" />
-                        <span className="text-sm font-medium">Front side ready</span>
+                        <span className="text-sm font-medium">Document ready</span>
                         <Button 
                           variant="ghost" 
                           size="icon" 
@@ -380,65 +478,67 @@ const KYCSubmission: React.FC = () => {
                 </div>
               </div>
 
-              {/* Back Side Upload */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Back Side <span className="text-destructive">*</span></Label>
-                <div 
-                  className={`
-                    border-2 border-dashed rounded-xl p-4 text-center transition-all min-h-[180px] flex flex-col items-center justify-center
-                    ${backDoc.croppedUrl ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}
-                  `}
-                >
-                  {!backDoc.croppedUrl ? (
-                    <div className="space-y-3">
-                      <div className="flex justify-center">
-                        <div className="p-3 rounded-full bg-primary/10">
-                          <ImageIcon className="w-6 h-6 text-primary" />
+              {/* Back Side Upload - Only for CNIC */}
+              {currentDocConfig.requiresBack && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Back Side <span className="text-destructive">*</span></Label>
+                  <div 
+                    className={`
+                      border-2 border-dashed rounded-xl p-4 text-center transition-all min-h-[180px] flex flex-col items-center justify-center
+                      ${backDoc.croppedUrl ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}
+                    `}
+                  >
+                    {!backDoc.croppedUrl ? (
+                      <div className="space-y-3">
+                        <div className="flex justify-center">
+                          <div className="p-3 rounded-full bg-primary/10">
+                            <ImageIcon className="w-6 h-6 text-primary" />
+                          </div>
                         </div>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Back of CNIC</p>
-                        <p className="text-xs text-muted-foreground">JPG or PNG (max 5MB)</p>
-                      </div>
-                      <input
-                        ref={backInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/jpg"
-                        onChange={(e) => handleFileSelect(e, 'back')}
-                        className="hidden"
-                      />
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => backInputRef.current?.click()}
-                      >
-                        <Upload className="w-4 h-4 mr-2" />
-                        Select Image
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 w-full">
-                      <img 
-                        src={backDoc.croppedUrl} 
-                        alt="Back side preview" 
-                        className="max-h-28 rounded-lg object-contain mx-auto"
-                      />
-                      <div className="flex items-center justify-center gap-2">
-                        <FileCheck className="w-4 h-4 text-green-500" />
-                        <span className="text-sm font-medium">Back side ready</span>
+                        <div>
+                          <p className="text-sm font-medium">{docLabels.back}</p>
+                          <p className="text-xs text-muted-foreground">JPG or PNG (max 5MB)</p>
+                        </div>
+                        <input
+                          ref={backInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/jpg"
+                          onChange={(e) => handleFileSelect(e, 'back')}
+                          className="hidden"
+                        />
                         <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6"
-                          onClick={clearBackSelection}
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => backInputRef.current?.click()}
                         >
-                          <X className="w-4 h-4" />
+                          <Upload className="w-4 h-4 mr-2" />
+                          Select Image
                         </Button>
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="space-y-3 w-full">
+                        <img 
+                          src={backDoc.croppedUrl} 
+                          alt="Back side preview" 
+                          className="max-h-28 rounded-lg object-contain mx-auto"
+                        />
+                        <div className="flex items-center justify-center gap-2">
+                          <FileCheck className="w-4 h-4 text-green-500" />
+                          <span className="text-sm font-medium">Back side ready</span>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6"
+                            onClick={clearBackSelection}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Contact Information */}
@@ -506,7 +606,15 @@ const KYCSubmission: React.FC = () => {
               <AlertDescription>
                 <strong>Document Guidelines:</strong>
                 <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
-                  <li>Ensure both sides of the document are clearly visible</li>
+                  {documentType === 'cnic' && (
+                    <li>Ensure both sides of the CNIC are clearly visible</li>
+                  )}
+                  {documentType === 'passport' && (
+                    <li>Upload the photo page of your passport with all details visible</li>
+                  )}
+                  {documentType === 'form_b' && (
+                    <li>Upload a clear photo of the complete Form B document</li>
+                  )}
                   <li>All corners of the document must be visible</li>
                   <li>No glare or shadows covering the text</li>
                   <li>Document must be valid and not expired</li>
@@ -544,21 +652,21 @@ const KYCSubmission: React.FC = () => {
           onClose={() => setShowFrontCropper(false)}
           imageSrc={frontDoc.previewUrl}
           onCropComplete={handleFrontCropComplete}
-          aspectRatio={1.586} // ID card aspect ratio (85.6mm x 54mm)
-          title="Crop Front Side"
-          description="Adjust the crop area to fit your CNIC front side"
+          aspectRatio={currentDocConfig.aspectRatio}
+          title={`Crop ${docLabels.front}`}
+          description={`Adjust the crop area to fit your ${currentDocConfig.label}`}
         />
       )}
       
-      {backDoc.previewUrl && (
+      {backDoc.previewUrl && currentDocConfig.requiresBack && (
         <ImageCropper
           open={showBackCropper}
           onClose={() => setShowBackCropper(false)}
           imageSrc={backDoc.previewUrl}
           onCropComplete={handleBackCropComplete}
-          aspectRatio={1.586}
-          title="Crop Back Side"
-          description="Adjust the crop area to fit your CNIC back side"
+          aspectRatio={currentDocConfig.aspectRatio}
+          title={`Crop ${docLabels.back}`}
+          description={`Adjust the crop area to fit your ${currentDocConfig.label} back side`}
         />
       )}
     </div>
