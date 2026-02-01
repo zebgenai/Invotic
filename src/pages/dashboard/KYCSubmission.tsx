@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import ImageCropper from '@/components/ImageCropper';
+import PhoneInputWithCountry from '@/components/PhoneInputWithCountry';
 import { 
   Upload, 
   FileCheck, 
@@ -565,16 +566,13 @@ const KYCSubmission: React.FC = () => {
                   <Phone className="w-4 h-4" />
                   WhatsApp Number <span className="text-destructive">*</span>
                 </Label>
-                <Input
-                  id="whatsapp"
-                  type="tel"
-                  placeholder="+1234567890"
+                <PhoneInputWithCountry
                   value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
-                  className="bg-background/50"
+                  onChange={setWhatsapp}
+                  placeholder="3001234567"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Include country code (e.g., +92, +1)
+                  Select country and enter your phone number
                 </p>
               </div>
             </div>
