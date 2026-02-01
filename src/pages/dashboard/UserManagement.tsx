@@ -325,6 +325,60 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const handleBulkDeleteUsers = async () => {
+    const selected = getSelectedProfiles();
+    
+    if (selected.length === 0) {
+      toast({
+        title: 'No users selected',
+        description: 'Please select users to delete.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setBulkActionLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+    
+    try {
+      for (const profile of selected) {
+        try {
+          await deleteProfile.mutateAsync({ userId: profile.user_id });
+          successCount++;
+        } catch (error) {
+          failCount++;
+          console.error(`Failed to delete user ${profile.email}:`, error);
+        }
+      }
+      
+      if (successCount > 0) {
+        toast({
+          title: 'Bulk delete complete',
+          description: `${successCount} user(s) permanently deleted.${failCount > 0 ? ` ${failCount} failed.` : ''}`,
+        });
+      }
+      
+      if (failCount > 0 && successCount === 0) {
+        toast({
+          title: 'Error',
+          description: 'Failed to delete users. Please try again.',
+          variant: 'destructive',
+        });
+      }
+      
+      setSelectedUsers(new Set());
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete users. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
   const filteredProfiles = useMemo(() => profiles?.filter((profile) => {
     const matchesSearch =
       profile.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -619,6 +673,35 @@ const UserManagement: React.FC = () => {
                       onClick={handleBulkDeleteKyc}
                     >
                       Delete All
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={bulkActionLoading}
+                  >
+                    <UserX className="w-3 h-3 mr-1" />
+                    Delete Users
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Selected Users</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete {selectedUsers.size} user(s) from the system, including all their data (messages, tasks, teams, etc.). This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={handleBulkDeleteUsers}
+                    >
+                      Delete {selectedUsers.size} User(s)
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
