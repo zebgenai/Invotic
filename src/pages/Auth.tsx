@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Loader2, Sparkles, ArrowLeft, PenLine, Video, Image, Mic, Search, Users, Check } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Sparkles, ArrowLeft, PenLine, Video, Image, Mic, Search, Users, Check, AlertTriangle } from 'lucide-react';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
+import { useSignupEnabled } from '@/hooks/useAppSettings';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const specialties = [
   { value: 'script_writer', label: 'Script Writer', icon: PenLine },
@@ -51,6 +53,7 @@ const AuthPage: React.FC = () => {
   const { signUp, signIn } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { signupEnabled, isLoading: settingsLoading } = useSignupEnabled();
 
   const toggleSpecialty = (value: SpecialtyValue) => {
     setFormData(prev => {
@@ -77,6 +80,17 @@ const AuthPage: React.FC = () => {
 
     try {
       if (isSignUp) {
+        // Check if signups are enabled
+        if (!signupEnabled) {
+          toast({
+            title: 'Signups Disabled',
+            description: 'New user registration is currently disabled. Please try again later.',
+            variant: 'destructive',
+          });
+          setLoading(false);
+          return;
+        }
+
         const result = signUpSchema.safeParse(formData);
         if (!result.success) {
           const fieldErrors: Record<string, string> = {};
@@ -194,6 +208,15 @@ const AuthPage: React.FC = () => {
           </div>
 
           {/* Form */}
+          {isSignUp && !signupEnabled && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                New user registration is currently disabled. Please try again later or contact the administrator.
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
               <div className="space-y-2">

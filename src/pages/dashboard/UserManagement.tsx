@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -40,9 +42,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Shield, Users, CheckCircle, XCircle, Clock, Eye, Download, FileText, Image as ImageIcon, Trash2, Mail, Phone, UserX, CheckSquare } from 'lucide-react';
+import { Search, Shield, Users, CheckCircle, XCircle, Clock, Eye, Download, FileText, Image as ImageIcon, Trash2, Mail, Phone, UserX, CheckSquare, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { AppRole, KycStatus, Profile } from '@/types/database';
+import { useSignupEnabled, useUpdateAppSetting } from '@/hooks/useAppSettings';
 
 const UserManagement: React.FC = () => {
   const { data: profiles, isLoading } = useProfiles();
@@ -58,6 +61,9 @@ const UserManagement: React.FC = () => {
   const [viewingDocument, setViewingDocument] = useState<{ url: string; name: string; type: string } | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  
+  const { signupEnabled, isLoading: settingsLoading } = useSignupEnabled();
+  const updateSetting = useUpdateAppSetting();
 
   const getDocumentUrl = (filePath: string) => {
     const { data } = supabase.storage.from('kyc-documents').getPublicUrl(filePath);
@@ -370,11 +376,52 @@ const UserManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-display font-bold">User Management</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage users, roles, and KYC verification.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-display font-bold">User Management</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage users, roles, and KYC verification.
+          </p>
+        </div>
+        
+        {/* Signup Toggle */}
+        <Card className="glass-card">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center gap-3">
+              <UserPlus className={`w-5 h-5 ${signupEnabled ? 'text-success' : 'text-muted-foreground'}`} />
+              <div className="flex flex-col">
+                <Label htmlFor="signup-toggle" className="text-sm font-medium cursor-pointer">
+                  New Signups
+                </Label>
+                <span className="text-xs text-muted-foreground">
+                  {signupEnabled ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+              <Switch
+                id="signup-toggle"
+                checked={signupEnabled}
+                onCheckedChange={async (checked) => {
+                  try {
+                    await updateSetting.mutateAsync({ key: 'signup_enabled', value: checked });
+                    toast({
+                      title: checked ? 'Signups Enabled' : 'Signups Disabled',
+                      description: checked 
+                        ? 'New users can now register.' 
+                        : 'New user registration has been disabled.',
+                    });
+                  } catch (error) {
+                    toast({
+                      title: 'Error',
+                      description: 'Failed to update signup setting.',
+                      variant: 'destructive',
+                    });
+                  }
+                }}
+                disabled={updateSetting.isPending || settingsLoading}
+              />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Stats */}
