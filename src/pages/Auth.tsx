@@ -22,7 +22,11 @@ type SpecialtyValue = typeof specialties[number]['value'];
 
 const signUpSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
+  email: z.string()
+    .email('Invalid email address')
+    .refine((email) => email.toLowerCase().endsWith('@gmail.com'), {
+      message: 'Only Gmail addresses (@gmail.com) are allowed',
+    }),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   specialties: z.array(z.string()).min(1, 'Please select at least 1 specialty').max(3, 'Maximum 3 specialties allowed'),
 });
