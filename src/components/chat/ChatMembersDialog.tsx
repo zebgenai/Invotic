@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Search, UserPlus, UserMinus, Crown, Loader2 } from 'lucide-react';
+import { Search, UserPlus, UserMinus, Crown, Loader2, Users, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useChatRoomMembers, useAddChatRoomMember, useRemoveChatRoomMember } from '@/hooks/useChat';
 import { useProfiles } from '@/hooks/useProfiles';
@@ -36,6 +36,9 @@ interface ChatMembersDialogProps {
   roomCreatorId: string;
   currentUserId: string | undefined;
   isAdmin: boolean;
+  onlineUsers?: string[];
+  onlineCount?: number;
+  totalMembers?: number;
 }
 
 const ChatMembersDialog: React.FC<ChatMembersDialogProps> = ({
@@ -46,6 +49,9 @@ const ChatMembersDialog: React.FC<ChatMembersDialogProps> = ({
   roomCreatorId,
   currentUserId,
   isAdmin,
+  onlineUsers = [],
+  onlineCount = 0,
+  totalMembers = 0,
 }) => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
@@ -124,6 +130,20 @@ const ChatMembersDialog: React.FC<ChatMembersDialogProps> = ({
             }
           </DialogDescription>
         </DialogHeader>
+
+        {/* Room Stats */}
+        {!showAddMembers && (
+          <div className="flex items-center gap-4 p-3 rounded-lg bg-secondary/30 mb-2">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">{members?.length || totalMembers} members</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Circle className="w-3 h-3 fill-success text-success" />
+              <span className="text-sm text-success font-medium">{onlineCount} online</span>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-4">
           {/* Search and Toggle */}
@@ -211,6 +231,8 @@ const ChatMembersDialog: React.FC<ChatMembersDialogProps> = ({
                     const isSelf = member.user_id === currentUserId;
                     const canRemove = canManageMembers && !isCreator && !isSelf;
 
+                    const isOnline = onlineUsers.includes(member.user_id);
+
                     return (
                       <div
                         key={member.id}
@@ -220,14 +242,23 @@ const ChatMembersDialog: React.FC<ChatMembersDialogProps> = ({
                         )}
                       >
                         <div className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10">
-                            <AvatarImage src={member.profiles?.avatar_url || ''} />
-                            <AvatarFallback className={cn(
-                              isCreator ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
-                            )}>
-                              {member.profiles?.full_name?.charAt(0) || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
+                          <div className="relative">
+                            <Avatar className="w-10 h-10">
+                              <AvatarImage src={member.profiles?.avatar_url || ''} />
+                              <AvatarFallback className={cn(
+                                isCreator ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
+                              )}>
+                                {member.profiles?.full_name?.charAt(0) || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                            {/* Online indicator */}
+                            <span
+                              className={cn(
+                                "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background",
+                                isOnline ? "bg-success" : "bg-muted"
+                              )}
+                            />
+                          </div>
                           <div>
                             <div className="flex items-center gap-2">
                               <p className="font-medium text-sm">{member.profiles?.full_name}</p>
@@ -239,6 +270,11 @@ const ChatMembersDialog: React.FC<ChatMembersDialogProps> = ({
                               {isSelf && (
                                 <Badge variant="outline" className="text-[10px] py-0">
                                   You
+                                </Badge>
+                              )}
+                              {isOnline && (
+                                <Badge variant="outline" className="text-[10px] py-0 text-success border-success/50">
+                                  Online
                                 </Badge>
                               )}
                             </div>
