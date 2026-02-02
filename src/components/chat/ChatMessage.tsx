@@ -99,49 +99,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     profilesMap[p.user_id] = p;
   });
 
-  // Render message content with highlighted mentions
-  const renderMessageContent = (content: string | null) => {
-    if (!content) return null;
-    
-    // Match @mentions (name can have spaces, ends at next @ or end of string)
-    const mentionRegex = /@([A-Za-z\s]+?)(?=\s@|$|\s{2}|[.,!?])/g;
-    const parts: React.ReactNode[] = [];
-    let lastIndex = 0;
-    let match;
-
-    while ((match = mentionRegex.exec(content)) !== null) {
-      // Add text before the mention
-      if (match.index > lastIndex) {
-        parts.push(content.slice(lastIndex, match.index));
-      }
-      
-      // Add the highlighted mention
-      const mentionName = match[1].trim();
-      parts.push(
-        <span
-          key={match.index}
-          className={cn(
-            "font-semibold px-1 rounded",
-            isOwn 
-              ? "bg-white/20 text-white" 
-              : "bg-primary/20 text-primary"
-          )}
-        >
-          @{mentionName}
-        </span>
-      );
-      
-      lastIndex = match.index + match[0].length;
-    }
-    
-    // Add remaining text
-    if (lastIndex < content.length) {
-      parts.push(content.slice(lastIndex));
-    }
-    
-    return parts.length > 0 ? parts : content;
-  };
-
   const handleSaveEdit = () => {
     if (editContent.trim() && onEditMessage) {
       onEditMessage(message.id, editContent.trim());
@@ -326,9 +283,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
               </Button>
             </div>
           ) : (
-            <p className="text-sm whitespace-pre-wrap relative z-10">
-              {renderMessageContent(message.content)}
-            </p>
+            <p className="text-sm whitespace-pre-wrap relative z-10">{message.content}</p>
           )}
           
           <div className={cn(

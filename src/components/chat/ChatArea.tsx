@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,7 +39,6 @@ import { isWithinInterval, parseISO, format, startOfDay, endOfDay } from 'date-f
 import ChatMessage from './ChatMessage';
 import ChatMembersDialog from './ChatMembersDialog';
 import VoiceRecorder from './VoiceRecorder';
-import MentionInput from './MentionInput';
 import type { DateRange } from 'react-day-picker';
 
 interface Profile {
@@ -138,28 +137,20 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   getReactionsForMessage,
   onToggleReaction,
 }) => {
-  const scrollViewportRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
   const [showMembersDialog, setShowMembersDialog] = useState(false);
 
-  const scrollToBottom = useCallback(() => {
-    if (scrollViewportRef.current) {
-      scrollViewportRef.current.scrollTo({
-        top: scrollViewportRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
-  }, []);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
-  // Scroll to bottom when messages change
   useEffect(() => {
-    // Small delay to ensure DOM is updated
-    const timeout = setTimeout(scrollToBottom, 100);
-    return () => clearTimeout(timeout);
-  }, [messages, scrollToBottom]);
+    scrollToBottom();
+  }, [messages]);
 
   // Reset selection when room changes
   useEffect(() => {
@@ -483,7 +474,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
       {/* Messages */}
       <CardContent className="flex-1 overflow-hidden p-0">
-        <ScrollArea className="h-full" viewportRef={scrollViewportRef}>
+        <ScrollArea className="h-full">
           <div className="p-4">
             {messagesLoading ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -539,6 +530,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                     />
                   );
                 })}
+                <div ref={messagesEndRef} />
               </div>
             )}
           </div>
@@ -568,11 +560,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
               <Paperclip className="w-4 h-4" />
             </Button>
             
-            <MentionInput
-              placeholder="Type a message... (use @ to mention)"
+            <Input
+              placeholder="Type a message..."
               value={messageInput}
-              onChange={setMessageInput}
-              profiles={allProfiles}
+              onChange={(e) => setMessageInput(e.target.value)}
+              className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60"
             />
             
             <Button 
