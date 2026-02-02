@@ -5,9 +5,10 @@ import Sidebar from './Sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { NotificationsDropdown } from '@/components/layout/NotificationsDropdown';
 import { cn } from '@/lib/utils';
-import { Loader2, Menu, X } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const DashboardLayout: React.FC = () => {
   const { user, loading, profile, role } = useAuth();
@@ -21,42 +22,35 @@ const DashboardLayout: React.FC = () => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
-  // Show loading state while auth is being determined
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Redirect to auth if not logged in
-  if (!user) {
+  // Redirect to auth if not logged in (check immediately, no loading state needed)
+  if (!loading && !user) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Wait for profile to load before making KYC decisions
-  if (!profile) {
+  // Show minimal skeleton while auth is being determined
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading profile...</p>
+      <div className="min-h-screen bg-background flex">
+        <div className="hidden md:block w-64 bg-card border-r border-border" />
+        <div className="flex-1">
+          <div className="h-14 border-b border-border bg-background/80 backdrop-blur-sm" />
+          <div className="p-6 space-y-4">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-32 w-full" />
+          </div>
         </div>
       </div>
     );
   }
 
-  // Check if user needs KYC approval
-  const isKycApproved = profile.kyc_status === 'approved';
+  // Check if user needs KYC approval (only when profile is loaded)
+  const isKycApproved = profile?.kyc_status === 'approved';
   const isAdminOrManager = role === 'admin' || role === 'manager';
   const allowedPathsForPendingKyc = ['/dashboard/kyc-submit', '/dashboard/settings'];
   const currentPath = location.pathname;
   
-  if (!isAdminOrManager && !isKycApproved && !allowedPathsForPendingKyc.includes(currentPath)) {
+  // Only redirect for KYC when profile is loaded
+  if (profile && !isAdminOrManager && !isKycApproved && !allowedPathsForPendingKyc.includes(currentPath)) {
     return <Navigate to="/dashboard/kyc-submit" replace />;
   }
 
@@ -97,9 +91,13 @@ const DashboardLayout: React.FC = () => {
                   <Menu className="w-5 h-5" />
                 </Button>
               )}
-              <div>
+            <div>
                 <p className="text-xs md:text-sm text-muted-foreground">Welcome back,</p>
-                <h2 className="font-semibold text-sm md:text-base">{profile?.full_name || 'User'}</h2>
+                {profile ? (
+                  <h2 className="font-semibold text-sm md:text-base">{profile.full_name || 'User'}</h2>
+                ) : (
+                  <Skeleton className="h-5 w-24" />
+                )}
               </div>
             </div>
             <div className="flex items-center gap-1 md:gap-2">
