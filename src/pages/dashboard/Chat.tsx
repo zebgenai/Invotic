@@ -4,6 +4,7 @@ import { useProfiles } from '@/hooks/useProfiles';
 import { useChatMemberProfiles } from '@/hooks/useChatProfiles';
 import { useChatPresence } from '@/hooks/useChatPresence';
 import { useRoomMessageReads, useMarkMessagesAsRead } from '@/hooks/useMessageReads';
+import { useMessageReactions } from '@/hooks/useMessageReactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -31,6 +32,13 @@ const Chat: React.FC = () => {
   // Get message read receipts for current room
   const { data: messageReads } = useRoomMessageReads(selectedRoom);
   const markMessagesAsRead = useMarkMessagesAsRead();
+  
+  // Get message reactions for current room
+  const { getReactionsForMessage, toggleReaction } = useMessageReactions(selectedRoom);
+  
+  const handleToggleReaction = (messageId: string, emoji: string) => {
+    toggleReaction.mutate({ messageId, emoji });
+  };
   
   const sendMessage = useSendMessage();
   const createRoom = useCreateChatRoom();
@@ -476,6 +484,8 @@ const Chat: React.FC = () => {
             totalMembers={roomMembers?.length || 0}
             messageReads={messageReads || {}}
             allProfiles={allProfilesList}
+            getReactionsForMessage={getReactionsForMessage}
+            onToggleReaction={handleToggleReaction}
           />
         )}
 
@@ -553,6 +563,8 @@ const Chat: React.FC = () => {
         totalMembers={roomMembers?.length || 0}
         messageReads={messageReads || {}}
         allProfiles={allProfilesList}
+        getReactionsForMessage={getReactionsForMessage}
+        onToggleReaction={handleToggleReaction}
       />
 
       {/* Image Cropper Dialog */}

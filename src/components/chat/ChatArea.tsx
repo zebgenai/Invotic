@@ -65,6 +65,13 @@ interface ChatRoom {
   created_by: string;
 }
 
+interface GroupedReaction {
+  emoji: string;
+  count: number;
+  users: string[];
+  hasReacted: boolean;
+}
+
 interface ChatAreaProps {
   selectedRoom: string | null;
   selectedRoomData: ChatRoom | undefined;
@@ -94,6 +101,8 @@ interface ChatAreaProps {
   totalMembers?: number;
   messageReads?: Record<string, { user_id: string; read_at: string }[]>;
   allProfiles?: Profile[];
+  getReactionsForMessage?: (messageId: string) => GroupedReaction[];
+  onToggleReaction?: (messageId: string, emoji: string) => void;
 }
 
 const ChatArea: React.FC<ChatAreaProps> = ({
@@ -125,6 +134,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   totalMembers = 0,
   messageReads = {},
   allProfiles = [],
+  getReactionsForMessage,
+  onToggleReaction,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -488,6 +499,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                   const readers = messageReads[message.id] || [];
                   // Filter out the sender from readers
                   const otherReaders = readers.filter(r => r.user_id !== message.sender_id);
+                  const reactions = getReactionsForMessage?.(message.id) || [];
+                  
+                  // Build profiles map for reactions
+                  const profilesMap: Record<string, Profile> = {};
+                  allProfiles.forEach(p => {
+                    profilesMap[p.user_id] = p;
+                  });
                   
                   return (
                     <ChatMessage
@@ -506,6 +524,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                       onToggleSelect={handleToggleSelect}
                       readers={otherReaders}
                       allProfiles={allProfiles}
+                      reactions={reactions}
+                      onReact={onToggleReaction ? (emoji) => onToggleReaction(message.id, emoji) : undefined}
+                      reactionProfiles={profilesMap}
                     />
                   );
                 })}
