@@ -89,6 +89,8 @@ interface ChatAreaProps {
   isAdmin: boolean;
   isMobile?: boolean;
   onBack?: () => void;
+  onlineCount?: number;
+  onlineUsers?: string[];
 }
 
 const ChatArea: React.FC<ChatAreaProps> = ({
@@ -115,6 +117,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   isAdmin,
   isMobile = false,
   onBack,
+  onlineCount = 0,
+  onlineUsers = [],
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -243,7 +247,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             <div>
               <CardTitle className="text-base md:text-lg font-display flex items-center gap-2">
                 {selectedRoomData?.name || 'Private Chat'}
-                <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                {onlineCount > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                )}
               </CardTitle>
               <p className="text-xs text-muted-foreground flex items-center gap-2">
                 <Users className="w-3 h-3" />
@@ -252,6 +258,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                   : selectedRoomData?.is_group
                   ? 'Group Chat'
                   : 'Direct Message'}
+                {onlineCount > 0 && (
+                  <span className="text-success font-medium">
+                    • {onlineCount} online
+                  </span>
+                )}
               </p>
             </div>
           </div>

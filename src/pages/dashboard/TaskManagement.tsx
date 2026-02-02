@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,7 @@ import {
   CheckCircle,
   Link,
   ExternalLink,
+  Users,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -60,6 +62,7 @@ const TaskManagement: React.FC = () => {
     assigned_to: '',
     priority: 'medium' as TaskPriority,
     due_date: '',
+    assign_to_all: false,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,17 +78,25 @@ const TaskManagement: React.FC = () => {
     }
 
     try {
+      const allUserIds = formData.assign_to_all && profiles 
+        ? profiles.map(p => p.user_id) 
+        : undefined;
+        
       await createTask.mutateAsync({
         title: formData.title,
         description: formData.description || undefined,
         link: formData.link || undefined,
-        assigned_to: formData.assigned_to || undefined,
+        assigned_to: formData.assign_to_all ? undefined : (formData.assigned_to || undefined),
         priority: formData.priority,
         due_date: formData.due_date || undefined,
+        assign_to_all: formData.assign_to_all,
+        all_user_ids: allUserIds,
       });
       toast({
-        title: 'Task created!',
-        description: 'The task has been assigned.',
+        title: formData.assign_to_all ? 'Tasks created!' : 'Task created!',
+        description: formData.assign_to_all 
+          ? `Task assigned to ${profiles?.length || 0} users.`
+          : 'The task has been assigned.',
       });
       setFormData({
         title: '',
@@ -94,6 +105,7 @@ const TaskManagement: React.FC = () => {
         assigned_to: '',
         priority: 'medium',
         due_date: '',
+        assign_to_all: false,
       });
       setIsDialogOpen(false);
     } catch (error) {
@@ -265,23 +277,47 @@ const TaskManagement: React.FC = () => {
                   </div>
                 </div>
                 {profiles && profiles.length > 0 && (
-                  <div className="space-y-2">
-                    <Label htmlFor="assigned_to">Assign To</Label>
-                    <Select
-                      value={formData.assigned_to}
-                      onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select user" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {profiles.map((profile) => (
-                          <SelectItem key={profile.user_id} value={profile.user_id}>
-                            {profile.full_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-4">
+                    {/* Assign to All Checkbox */}
+                    <div className="flex items-center space-x-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                      <Checkbox
+                        id="assign_to_all"
+                        checked={formData.assign_to_all}
+                        onCheckedChange={(checked) => 
+                          setFormData({ 
+                            ...formData, 
+                            assign_to_all: checked as boolean,
+                            assigned_to: checked ? '' : formData.assigned_to 
+                          })
+                        }
+                      />
+                      <Label htmlFor="assign_to_all" className="flex items-center gap-2 cursor-pointer">
+                        <Users className="w-4 h-4 text-primary" />
+                        Assign to All Users ({profiles.length})
+                      </Label>
+                    </div>
+                    
+                    {/* Individual User Select - only show if not assigning to all */}
+                    {!formData.assign_to_all && (
+                      <div className="space-y-2">
+                        <Label htmlFor="assigned_to">Assign To (Optional)</Label>
+                        <Select
+                          value={formData.assigned_to}
+                          onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select user" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {profiles.map((profile) => (
+                              <SelectItem key={profile.user_id} value={profile.user_id}>
+                                {profile.full_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                 )}
                 <Button type="submit" className="w-full" disabled={createTask.isPending}>

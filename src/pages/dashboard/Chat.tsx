@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom, useDeleteMessage, useDeleteMessageForMe, useDeleteAllMessages, useDeleteSelectedMessages, useEditMessage, useCreatePrivateChat, useAllProfiles, useDeleteChatRoom } from '@/hooks/useChat';
 import { useProfiles } from '@/hooks/useProfiles';
+import { useChatMemberProfiles } from '@/hooks/useChatProfiles';
+import { useChatPresence } from '@/hooks/useChatPresence';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -12,9 +14,16 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const Chat: React.FC = () => {
   const { user, profile, role } = useAuth();
   const { data: rooms, isLoading: roomsLoading } = useChatRooms();
-  const { data: profiles } = useProfiles();
+  const { data: adminProfiles } = useProfiles(); // For admins/managers only
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const { data: messages, isLoading: messagesLoading } = useMessages(selectedRoom);
+  
+  // Get profiles for current room members - works for ALL users
+  const { data: roomMemberProfiles } = useChatMemberProfiles(selectedRoom);
+  
+  // Get presence data for current room
+  const { onlineUsers, onlineCount } = useChatPresence(selectedRoom);
+  
   const sendMessage = useSendMessage();
   const createRoom = useCreateChatRoom();
   const updateRoom = useUpdateChatRoom();
@@ -352,7 +361,11 @@ const Chat: React.FC = () => {
 
   const getSenderProfile = (senderId: string) => {
     if (senderId === user?.id) return profile;
-    return profiles?.find((p) => p.user_id === senderId);
+    // First try room member profiles (works for all users)
+    const roomProfile = roomMemberProfiles?.find((p) => p.user_id === senderId);
+    if (roomProfile) return roomProfile;
+    // Fallback to admin profiles if available
+    return adminProfiles?.find((p) => p.user_id === senderId);
   };
 
   const selectedRoomData = rooms?.find((r) => r.id === selectedRoom);
@@ -423,6 +436,8 @@ const Chat: React.FC = () => {
             isAdmin={role === 'admin'}
             isMobile={true}
             onBack={handleBackToRooms}
+            onlineCount={onlineCount}
+            onlineUsers={onlineUsers}
           />
         )}
 
@@ -495,6 +510,8 @@ const Chat: React.FC = () => {
         getSenderProfile={getSenderProfile}
         currentUserId={user?.id}
         isAdmin={role === 'admin'}
+        onlineCount={onlineCount}
+        onlineUsers={onlineUsers}
       />
 
       {/* Image Cropper Dialog */}
