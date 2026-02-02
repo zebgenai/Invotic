@@ -71,15 +71,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user, fetchProfile]);
 
   useEffect(() => {
+    // Get session immediately without waiting
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      
+      if (currentSession?.user) {
+        // Fetch profile without blocking - set loading false immediately for better UX
+        fetchProfile(currentSession.user.id);
+      }
+      // Set loading false immediately after getting session
+      setLoading(false);
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
 
         if (currentSession?.user) {
-          setTimeout(() => {
-            fetchProfile(currentSession.user.id);
-          }, 0);
+          fetchProfile(currentSession.user.id);
         } else {
           setProfile(null);
           setRole(null);
@@ -91,19 +102,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     );
-
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      
-      if (currentSession?.user) {
-        fetchProfile(currentSession.user.id).finally(() => {
-          setLoading(false);
-        });
-      } else {
-        setLoading(false);
-      }
-    });
 
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
