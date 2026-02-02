@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 interface Profile {
@@ -153,26 +152,27 @@ const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(({
       {showMentions && filteredProfiles.length > 0 && (
         <div 
           ref={mentionListRef}
-          className="absolute bottom-full left-0 mb-2 w-64 bg-popover border border-border rounded-xl shadow-xl z-50 overflow-hidden"
+          className="absolute bottom-full left-0 mb-2 w-72 bg-popover border border-border rounded-xl shadow-xl z-50 overflow-hidden"
         >
-          <div className="p-2 border-b border-border/50">
+          <div className="p-2 border-b border-border/50 flex items-center justify-between">
             <p className="text-xs text-muted-foreground font-medium">Mention someone</p>
+            <p className="text-[10px] text-muted-foreground">↑↓ to navigate</p>
           </div>
-          <ScrollArea className="max-h-48">
+          <div className="max-h-52 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
             <div className="p-1">
-              {filteredProfiles.slice(0, 10).map((profile, index) => (
+              {filteredProfiles.slice(0, 15).map((profile, index) => (
                 <button
                   key={profile.user_id}
                   type="button"
                   onClick={() => handleSelectMention(profile)}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors",
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors",
                     index === selectedIndex 
                       ? "bg-primary/10 text-primary" 
                       : "hover:bg-muted"
                   )}
                 >
-                  <Avatar className="h-7 w-7">
+                  <Avatar className="h-8 w-8 ring-2 ring-offset-1 ring-offset-background ring-border/50">
                     <AvatarImage src={profile.avatar_url || ''} />
                     <AvatarFallback className="text-xs bg-primary/10 text-primary">
                       {profile.full_name?.charAt(0) || 'U'}
@@ -184,7 +184,14 @@ const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(({
                 </button>
               ))}
             </div>
-          </ScrollArea>
+          </div>
+          {filteredProfiles.length > 15 && (
+            <div className="p-2 border-t border-border/50 text-center">
+              <p className="text-[10px] text-muted-foreground">
+                +{filteredProfiles.length - 15} more - keep typing to filter
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
