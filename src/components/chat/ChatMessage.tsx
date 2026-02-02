@@ -18,6 +18,7 @@ import { Play, Pause, Trash2, CheckCheck, Download, Pencil, X, Check } from 'luc
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import MessageReadReceipts from './MessageReadReceipts';
+import MessageReactions from './MessageReactions';
 
 interface Profile {
   user_id: string;
@@ -36,6 +37,13 @@ interface Message {
   is_read: boolean;
 }
 
+interface GroupedReaction {
+  emoji: string;
+  count: number;
+  users: string[];
+  hasReacted: boolean;
+}
+
 interface ChatMessageProps {
   message: Message;
   sender: Profile | null | undefined;
@@ -52,6 +60,9 @@ interface ChatMessageProps {
   canDeleteOwn?: boolean;
   readers?: { user_id: string; read_at: string }[];
   allProfiles?: Profile[];
+  reactions?: GroupedReaction[];
+  onReact?: (emoji: string) => void;
+  reactionProfiles?: Record<string, Profile>;
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({
@@ -70,6 +81,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   canDeleteOwn = true,
   readers = [],
   allProfiles = [],
+  reactions = [],
+  onReact,
+  reactionProfiles = {},
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content || '');
@@ -298,6 +312,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
               profiles={profilesMap}
               isOwn={isOwn}
               maxVisible={3}
+            />
+          )}
+
+          {/* Message Reactions */}
+          {(reactions.length > 0 || onReact) && (
+            <MessageReactions
+              messageId={message.id}
+              reactions={reactions}
+              onReact={onReact || (() => {})}
+              isOwn={isOwn}
+              profiles={reactionProfiles}
             />
           )}
         </div>
