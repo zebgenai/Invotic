@@ -126,11 +126,15 @@ export const useSendMessage = () => {
       fileUrl?: string;
       fileType?: string;
     }) => {
+      if (!user?.id) {
+        throw new Error('You must be logged in to send messages');
+      }
+      
       const { data, error } = await supabase
         .from('messages')
         .insert({
           room_id: roomId,
-          sender_id: user?.id,
+          sender_id: user.id,
           content,
           file_url: fileUrl,
           file_type: fileType,
