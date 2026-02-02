@@ -91,6 +91,9 @@ interface ChatAreaProps {
   onBack?: () => void;
   onlineCount?: number;
   onlineUsers?: string[];
+  totalMembers?: number;
+  messageReads?: Record<string, { user_id: string; read_at: string }[]>;
+  allProfiles?: Profile[];
 }
 
 const ChatArea: React.FC<ChatAreaProps> = ({
@@ -119,6 +122,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   onBack,
   onlineCount = 0,
   onlineUsers = [],
+  totalMembers = 0,
+  messageReads = {},
+  allProfiles = [],
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -258,6 +264,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                   : selectedRoomData?.is_group
                   ? 'Group Chat'
                   : 'Direct Message'}
+                {totalMembers > 0 && (
+                  <span className="text-muted-foreground">
+                    • {totalMembers} members
+                  </span>
+                )}
                 {onlineCount > 0 && (
                   <span className="text-success font-medium">
                     • {onlineCount} online
@@ -475,23 +486,31 @@ const ChatArea: React.FC<ChatAreaProps> = ({
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredMessages.map((message) => (
-                  <ChatMessage
-                    key={message.id}
-                    message={message}
-                    sender={getSenderProfile(message.sender_id)}
-                    isOwn={message.sender_id === currentUserId}
-                    isAdmin={isAdmin}
-                    playingAudioId={playingAudioId}
-                    onPlayAudio={onPlayAudio}
-                    onDeleteMessage={onDeleteMessage}
-                    onDeleteForMe={onDeleteForMe}
-                    onEditMessage={onEditMessage}
-                    isSelectionMode={isSelectionMode}
-                    isSelected={selectedMessageIds.has(message.id)}
-                    onToggleSelect={handleToggleSelect}
-                  />
-                ))}
+                {filteredMessages.map((message) => {
+                  const readers = messageReads[message.id] || [];
+                  // Filter out the sender from readers
+                  const otherReaders = readers.filter(r => r.user_id !== message.sender_id);
+                  
+                  return (
+                    <ChatMessage
+                      key={message.id}
+                      message={message}
+                      sender={getSenderProfile(message.sender_id)}
+                      isOwn={message.sender_id === currentUserId}
+                      isAdmin={isAdmin}
+                      playingAudioId={playingAudioId}
+                      onPlayAudio={onPlayAudio}
+                      onDeleteMessage={onDeleteMessage}
+                      onDeleteForMe={onDeleteForMe}
+                      onEditMessage={onEditMessage}
+                      isSelectionMode={isSelectionMode}
+                      isSelected={selectedMessageIds.has(message.id)}
+                      onToggleSelect={handleToggleSelect}
+                      readers={otherReaders}
+                      allProfiles={allProfiles}
+                    />
+                  );
+                })}
                 <div ref={messagesEndRef} />
               </div>
             )}
@@ -577,6 +596,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           roomCreatorId={selectedRoomData.created_by || ''}
           currentUserId={currentUserId}
           isAdmin={isAdmin}
+          onlineUsers={onlineUsers}
+          onlineCount={onlineCount}
+          totalMembers={totalMembers}
         />
       )}
     </Card>

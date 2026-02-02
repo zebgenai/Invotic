@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react';
-import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom, useDeleteMessage, useDeleteMessageForMe, useDeleteAllMessages, useDeleteSelectedMessages, useEditMessage, useCreatePrivateChat, useAllProfiles, useDeleteChatRoom } from '@/hooks/useChat';
+import React, { useState, useRef, useEffect } from 'react';
+import { useChatRooms, useMessages, useSendMessage, useCreateChatRoom, useUpdateChatRoom, useDeleteMessage, useDeleteMessageForMe, useDeleteAllMessages, useDeleteSelectedMessages, useEditMessage, useCreatePrivateChat, useAllProfiles, useDeleteChatRoom, useChatRoomMembers } from '@/hooks/useChat';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useChatMemberProfiles } from '@/hooks/useChatProfiles';
 import { useChatPresence } from '@/hooks/useChatPresence';
+import { useRoomMessageReads, useMarkMessagesAsRead } from '@/hooks/useMessageReads';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -21,8 +22,15 @@ const Chat: React.FC = () => {
   // Get profiles for current room members - works for ALL users
   const { data: roomMemberProfiles } = useChatMemberProfiles(selectedRoom);
   
+  // Get room members for total count
+  const { data: roomMembers } = useChatRoomMembers(selectedRoom);
+  
   // Get presence data for current room
   const { onlineUsers, onlineCount } = useChatPresence(selectedRoom);
+  
+  // Get message read receipts for current room
+  const { data: messageReads } = useRoomMessageReads(selectedRoom);
+  const markMessagesAsRead = useMarkMessagesAsRead();
   
   const sendMessage = useSendMessage();
   const createRoom = useCreateChatRoom();
@@ -51,6 +59,24 @@ const Chat: React.FC = () => {
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [showImageCropper, setShowImageCropper] = useState(false);
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+
+  // Mark messages as read when entering a room or when new messages arrive
+  useEffect(() => {
+    if (!selectedRoom || !messages || messages.length === 0 || !user?.id) return;
+    
+    // Get message IDs that the user hasn't read yet (excluding own messages)
+    const unreadMessageIds = messages
+      .filter((m) => m.sender_id !== user.id)
+      .filter((m) => {
+        const reads = messageReads?.[m.id] || [];
+        return !reads.some((r) => r.user_id === user.id);
+      })
+      .map((m) => m.id);
+
+    if (unreadMessageIds.length > 0) {
+      markMessagesAsRead.mutate({ messageIds: unreadMessageIds, roomId: selectedRoom });
+    }
+  }, [selectedRoom, messages, user?.id, messageReads]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -360,13 +386,22 @@ const Chat: React.FC = () => {
   };
 
   const getSenderProfile = (senderId: string) => {
-    if (senderId === user?.id) return profile;
+    if (senderId === user?.id) return { ...profile, user_id: user.id };
     // First try room member profiles (works for all users)
     const roomProfile = roomMemberProfiles?.find((p) => p.user_id === senderId);
     if (roomProfile) return roomProfile;
     // Fallback to admin profiles if available
-    return adminProfiles?.find((p) => p.user_id === senderId);
+    const adminProfile = adminProfiles?.find((p) => p.user_id === senderId);
+    if (adminProfile) return adminProfile;
+    return null;
   };
+
+  // Build allProfiles list for message read receipts
+  const allProfilesList = roomMemberProfiles?.map(p => ({
+    user_id: p.user_id,
+    full_name: p.full_name,
+    avatar_url: p.avatar_url,
+  })) || [];
 
   const selectedRoomData = rooms?.find((r) => r.id === selectedRoom);
 
@@ -438,6 +473,9 @@ const Chat: React.FC = () => {
             onBack={handleBackToRooms}
             onlineCount={onlineCount}
             onlineUsers={onlineUsers}
+            totalMembers={roomMembers?.length || 0}
+            messageReads={messageReads || {}}
+            allProfiles={allProfilesList}
           />
         )}
 
@@ -512,6 +550,9 @@ const Chat: React.FC = () => {
         isAdmin={role === 'admin'}
         onlineCount={onlineCount}
         onlineUsers={onlineUsers}
+        totalMembers={roomMembers?.length || 0}
+        messageReads={messageReads || {}}
+        allProfiles={allProfilesList}
       />
 
       {/* Image Cropper Dialog */}

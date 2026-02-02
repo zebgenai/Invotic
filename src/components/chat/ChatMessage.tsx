@@ -17,8 +17,10 @@ import {
 import { Play, Pause, Trash2, CheckCheck, Download, Pencil, X, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import MessageReadReceipts from './MessageReadReceipts';
 
 interface Profile {
+  user_id: string;
   avatar_url: string | null;
   full_name: string;
 }
@@ -48,6 +50,8 @@ interface ChatMessageProps {
   isSelected?: boolean;
   onToggleSelect?: (messageId: string) => void;
   canDeleteOwn?: boolean;
+  readers?: { user_id: string; read_at: string }[];
+  allProfiles?: Profile[];
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({
@@ -64,6 +68,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   isSelected = false,
   onToggleSelect,
   canDeleteOwn = true,
+  readers = [],
+  allProfiles = [],
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content || '');
@@ -72,6 +78,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   const canDeleteForEveryone = isOwn || isAdmin;
   // Only message owner can edit their own text messages
   const canEdit = isOwn && !message.file_type && onEditMessage;
+
+  // Build profiles map for read receipts
+  const profilesMap: Record<string, Profile> = {};
+  allProfiles.forEach((p) => {
+    profilesMap[p.user_id] = p;
+  });
 
   const handleSaveEdit = () => {
     if (editContent.trim() && onEditMessage) {
@@ -274,10 +286,20 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
             {isOwn && (
               <CheckCheck className={cn(
                 "w-3.5 h-3.5",
-                message.is_read ? "text-info" : "text-white/40"
+                message.is_read || readers.length > 0 ? "text-info" : "text-white/40"
               )} />
             )}
           </div>
+
+          {/* Read Receipts */}
+          {readers.length > 0 && (
+            <MessageReadReceipts
+              readers={readers}
+              profiles={profilesMap}
+              isOwn={isOwn}
+              maxVisible={3}
+            />
+          )}
         </div>
         
         {/* Action buttons */}
