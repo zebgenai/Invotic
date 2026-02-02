@@ -264,11 +264,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                   : selectedRoomData?.is_group
                   ? 'Group Chat'
                   : 'Direct Message'}
-                {totalMembers > 0 && (
-                  <span className="text-muted-foreground">
-                    • {totalMembers} members
-                  </span>
-                )}
+                <span className="text-muted-foreground">
+                  • {totalMembers} member{totalMembers !== 1 ? 's' : ''}
+                </span>
                 {onlineCount > 0 && (
                   <span className="text-success font-medium">
                     • {onlineCount} online
