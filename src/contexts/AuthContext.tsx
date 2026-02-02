@@ -71,25 +71,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user, fetchProfile]);
 
   useEffect(() => {
-    // Get session immediately without waiting
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      
-      if (currentSession?.user) {
-        // Fetch profile without blocking - set loading false immediately for better UX
-        fetchProfile(currentSession.user.id);
-      }
-      // Set loading false immediately after getting session
-      setLoading(false);
-    });
+    let isMounted = true;
 
+    // Initial auth load - controls isLoading
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (!isMounted) return;
+
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+
+        // Fetch profile BEFORE setting loading false
+        if (currentSession?.user) {
+          await fetchProfile(currentSession.user.id);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    // Listener for ONGOING auth changes (does NOT control isLoading)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
+        if (!isMounted) return;
+        
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
 
         if (currentSession?.user) {
+          // Fire and forget - don't await, don't set loading
           fetchProfile(currentSession.user.id);
         } else {
           setProfile(null);
@@ -103,7 +116,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    return () => subscription.unsubscribe();
+    initializeAuth();
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [fetchProfile]);
 
   const signUp = async (email: string, password: string, fullName: string, specialty?: string, specialties?: string[]) => {
