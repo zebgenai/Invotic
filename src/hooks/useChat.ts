@@ -362,21 +362,30 @@ export const useChatRoomMembers = (roomId: string | null) => {
     queryFn: async () => {
       if (!roomId) return [];
       
-      const { data, error } = await supabase
+      // First get members
+      const { data: members, error: membersError } = await supabase
         .from('chat_room_members')
-        .select(`
-          *,
-          profiles:user_id (
-            user_id,
-            full_name,
-            avatar_url,
-            email
-          )
-        `)
+        .select('*')
         .eq('room_id', roomId);
 
-      if (error) throw error;
-      return data;
+      if (membersError) throw membersError;
+      if (!members || members.length === 0) return [];
+
+      // Then get profiles for those members
+      const userIds = members.map((m) => m.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, avatar_url, email')
+        .in('user_id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combine members with their profiles
+      const profilesMap = new Map(profiles?.map((p) => [p.user_id, p]) || []);
+      return members.map((member) => ({
+        ...member,
+        profiles: profilesMap.get(member.user_id) || null,
+      }));
     },
     enabled: !!roomId,
   });
