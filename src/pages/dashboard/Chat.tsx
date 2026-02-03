@@ -12,9 +12,19 @@ import ChatSidebar from '@/components/chat/ChatSidebar';
 import ChatArea from '@/components/chat/ChatArea';
 import ImageCropper from '@/components/ImageCropper';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useChatEnabled, useUpdateAppSetting } from '@/hooks/useAppSettings';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { MessageCircleOff, Settings } from 'lucide-react';
 
 const Chat: React.FC = () => {
   const { user, profile, role } = useAuth();
+  const { chatEnabled, isLoading: chatSettingLoading } = useChatEnabled();
+  const updateSetting = useUpdateAppSetting();
+  const isAdmin = role === 'admin';
+  
+  // All hooks must be called before any conditional returns
   const { data: rooms, isLoading: roomsLoading } = useChatRooms();
   const { data: adminProfiles } = useProfiles(); // For admins/managers only
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
@@ -35,10 +45,6 @@ const Chat: React.FC = () => {
   
   // Get message reactions for current room
   const { getReactionsForMessage, toggleReaction } = useMessageReactions(selectedRoom);
-  
-  const handleToggleReaction = (messageId: string, emoji: string) => {
-    toggleReaction.mutate({ messageId, emoji });
-  };
   
   const sendMessage = useSendMessage();
   const createRoom = useCreateChatRoom();
@@ -91,6 +97,40 @@ const Chat: React.FC = () => {
       markMessagesAsRead.mutate({ messageIds: limited, roomId: selectedRoom });
     }
   }, [selectedRoom, messages, user?.id, messageReads, markMessagesAsRead.isPending]);
+
+  const handleToggleReaction = (messageId: string, emoji: string) => {
+    toggleReaction.mutate({ messageId, emoji });
+  };
+
+  const handleToggleChatEnabled = async () => {
+    try {
+      await updateSetting.mutateAsync({ key: 'chat_enabled', value: !chatEnabled });
+    } catch (error) {
+      console.error('Failed to toggle chat setting:', error);
+    }
+  };
+
+  // Show disabled message for non-admin users when chat is disabled
+  if (!chatEnabled && !isAdmin) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
+        <Card className="max-w-md text-center">
+          <CardHeader>
+            <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+              <MessageCircleOff className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <CardTitle>Chat is Currently Disabled</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              The chat feature has been temporarily disabled by an administrator. 
+              Please check back later.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -447,6 +487,26 @@ const Chat: React.FC = () => {
   if (isMobile) {
     return (
       <div className="flex flex-col h-[calc(100vh-8rem)]">
+        {/* Admin Control Bar */}
+        {isAdmin && (
+          <div className="flex items-center justify-between p-3 bg-muted/50 border-b border-border rounded-t-lg">
+            <div className="flex items-center gap-2">
+              <Settings className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Chat Control</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="chat-toggle-mobile" className="text-sm text-muted-foreground">
+                {chatEnabled ? 'Enabled' : 'Disabled'}
+              </Label>
+              <Switch
+                id="chat-toggle-mobile"
+                checked={chatEnabled}
+                onCheckedChange={handleToggleChatEnabled}
+                disabled={updateSetting.isPending}
+              />
+            </div>
+          </div>
+        )}
         {!selectedRoom ? (
           <ChatSidebar
             rooms={transformedRooms}
@@ -530,8 +590,29 @@ const Chat: React.FC = () => {
 
   // Desktop: Side-by-side layout
   return (
-    <div className="flex h-[calc(100vh-7rem)] gap-4">
-      <ChatSidebar
+    <div className="flex flex-col h-[calc(100vh-7rem)] gap-4">
+      {/* Admin Control Bar */}
+      {isAdmin && (
+        <div className="flex items-center justify-between p-3 bg-muted/50 border border-border rounded-lg">
+          <div className="flex items-center gap-2">
+            <Settings className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Chat Control</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Label htmlFor="chat-toggle-desktop" className="text-sm text-muted-foreground">
+              {chatEnabled ? 'Chat Enabled for Users' : 'Chat Disabled for Users'}
+            </Label>
+            <Switch
+              id="chat-toggle-desktop"
+              checked={chatEnabled}
+              onCheckedChange={handleToggleChatEnabled}
+              disabled={updateSetting.isPending}
+            />
+          </div>
+        </div>
+      )}
+      <div className="flex flex-1 gap-4 min-h-0">
+        <ChatSidebar
         rooms={transformedRooms}
         roomsLoading={roomsLoading}
         selectedRoom={selectedRoom}
@@ -584,6 +665,7 @@ const Chat: React.FC = () => {
         getReactionsForMessage={getReactionsForMessage}
         onToggleReaction={handleToggleReaction}
       />
+      </div>
 
       {/* Image Cropper Dialog */}
       {imagePreviewUrl && (

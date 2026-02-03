@@ -39,6 +39,15 @@ export const useSignupEnabled = () => {
   };
 };
 
+export const useChatEnabled = () => {
+  const { data: settings, isLoading } = useAppSettings();
+  
+  return {
+    chatEnabled: settings?.chat_enabled ?? true,
+    isLoading,
+  };
+};
+
 export const useUpdateAppSetting = () => {
   const queryClient = useQueryClient();
   
