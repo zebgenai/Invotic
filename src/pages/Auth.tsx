@@ -5,11 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Loader2, Sparkles, ArrowLeft, PenLine, Video, Image, Mic, Search, Users, Check, AlertTriangle } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Sparkles, ArrowLeft, PenLine, Video, Image, Mic, Search, Users, Check, AlertTriangle, Wrench } from 'lucide-react';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
 import { useSignupEnabled } from '@/hooks/useAppSettings';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+
+// Set to true to show maintenance banner
+const MAINTENANCE_MODE = true;
 
 const specialties = [
   { value: 'script_writer', label: 'Script Writer', icon: PenLine },
@@ -182,13 +185,26 @@ const AuthPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
+      {/* Maintenance Banner */}
+      {MAINTENANCE_MODE && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-warning/90 via-warning to-warning/90 text-warning-foreground py-3 px-4 shadow-lg">
+          <div className="max-w-4xl mx-auto flex items-center justify-center gap-3 text-center">
+            <Wrench className="w-5 h-5 animate-pulse flex-shrink-0" />
+            <p className="text-sm md:text-base font-medium">
+              <span className="font-bold">🚧 Scheduled Maintenance:</span> We're upgrading our servers for a better experience. We'll be back online shortly. Thank you for your patience!
+            </p>
+            <Wrench className="w-5 h-5 animate-pulse flex-shrink-0 hidden sm:block" />
+          </div>
+        </div>
+      )}
+
       {/* Background effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse delay-1000" />
       </div>
 
-      <div className="relative z-10 w-full max-w-md px-4">
+      <div className={cn("relative z-10 w-full max-w-md px-4", MAINTENANCE_MODE && "pt-16")}>
         {/* Back Button */}
         <Link
           to="/"
