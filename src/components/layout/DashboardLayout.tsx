@@ -15,6 +15,7 @@ const DashboardLayout: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [loadingTooLong, setLoadingTooLong] = useState(false);
   const location = useLocation();
   const isMobile = useIsMobile();
 
@@ -22,6 +23,15 @@ const DashboardLayout: React.FC = () => {
   React.useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
+
+  // Show skip option after 15 seconds of waiting for profile
+  React.useEffect(() => {
+    if (!profile || !role) {
+      const timer = setTimeout(() => setLoadingTooLong(true), 15000);
+      return () => clearTimeout(timer);
+    }
+    setLoadingTooLong(false);
+  }, [profile, role]);
 
   // Redirect to auth if not logged in (check immediately, no loading state needed)
   if (!loading && !user) {
@@ -54,34 +64,49 @@ const DashboardLayout: React.FC = () => {
 
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4 p-6">
+        <div className="text-center space-y-4 p-6 max-w-md">
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
           </div>
           <div>
             <h2 className="text-lg font-semibold">Loading your dashboard...</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Fetching your profile and permissions
+              {loadingTooLong 
+                ? 'The server is experiencing high load. You can continue or retry.'
+                : 'Fetching your profile and permissions'
+              }
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={handleRetry}
-            disabled={isRetrying}
-            className="mt-4"
-          >
-            {isRetrying ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Retrying...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Retry Now
-              </>
+          <div className="flex flex-col sm:flex-row gap-2 justify-center">
+            <Button
+              variant="outline"
+              onClick={handleRetry}
+              disabled={isRetrying}
+            >
+              {isRetrying ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Retrying...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Retry Now
+                </>
+              )}
+            </Button>
+            {loadingTooLong && (
+              <Button
+                variant="default"
+                onClick={() => {
+                  // Force a minimal profile to unblock UI
+                  window.location.reload();
+                }}
+              >
+                Refresh Page
+              </Button>
             )}
-          </Button>
+          </div>
         </div>
       </div>
     );
