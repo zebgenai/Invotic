@@ -69,9 +69,11 @@ const Chat: React.FC = () => {
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
 
   // Mark messages as read when entering a room or when new messages arrive
+  // IMPORTANT: keep this light to avoid overloading the backend (which can break sending).
   useEffect(() => {
     if (!selectedRoom || !messages || messages.length === 0 || !user?.id) return;
-    
+    if (markMessagesAsRead.isPending) return;
+
     // Get message IDs that the user hasn't read yet (excluding own messages)
     const unreadMessageIds = messages
       .filter((m) => m.sender_id !== user.id)
@@ -81,14 +83,27 @@ const Chat: React.FC = () => {
       })
       .map((m) => m.id);
 
-    if (unreadMessageIds.length > 0) {
-      markMessagesAsRead.mutate({ messageIds: unreadMessageIds, roomId: selectedRoom });
+    // Only mark a few at a time to prevent DB timeouts/500s
+    const MAX_MARK_PER_TICK = 5;
+    const limited = unreadMessageIds.slice(-MAX_MARK_PER_TICK);
+
+    if (limited.length > 0) {
+      markMessagesAsRead.mutate({ messageIds: limited, roomId: selectedRoom });
     }
-  }, [selectedRoom, messages, user?.id, messageReads]);
+  }, [selectedRoom, messages, user?.id, messageReads, markMessagesAsRead.isPending]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageInput.trim() || !selectedRoom) return;
+    if (!messageInput.trim()) return;
+    if (!selectedRoom) return;
+    if (!user?.id) {
+      toast({
+        title: 'Please wait',
+        description: 'Your session is still loading. Try again in a moment.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     try {
       await sendMessage.mutateAsync({
@@ -97,9 +112,10 @@ const Chat: React.FC = () => {
       });
       setMessageInput('');
     } catch (error) {
+      const details = error instanceof Error ? error.message : 'Failed to send message. Please try again.';
       toast({
         title: 'Error',
-        description: 'Failed to send message. Please try again.',
+        description: details,
         variant: 'destructive',
       });
     }
@@ -463,6 +479,7 @@ const Chat: React.FC = () => {
             messageInput={messageInput}
             setMessageInput={setMessageInput}
             handleSendMessage={handleSendMessage}
+            isSending={sendMessage.isPending}
             handleFileUpload={handleFileUpload}
             handleVoiceRecordingComplete={handleVoiceRecordingComplete}
             isUploadingVoice={isUploadingVoice}
@@ -544,6 +561,7 @@ const Chat: React.FC = () => {
         messageInput={messageInput}
         setMessageInput={setMessageInput}
         handleSendMessage={handleSendMessage}
+        isSending={sendMessage.isPending}
         handleFileUpload={handleFileUpload}
         handleVoiceRecordingComplete={handleVoiceRecordingComplete}
         isUploadingVoice={isUploadingVoice}

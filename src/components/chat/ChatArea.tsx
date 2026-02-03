@@ -80,6 +80,7 @@ interface ChatAreaProps {
   messageInput: string;
   setMessageInput: (value: string) => void;
   handleSendMessage: (e: React.FormEvent) => void;
+  isSending?: boolean;
   handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleVoiceRecordingComplete: (blob: Blob) => void;
   isUploadingVoice: boolean;
@@ -113,6 +114,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   messageInput,
   setMessageInput,
   handleSendMessage,
+  isSending = false,
   handleFileUpload,
   handleVoiceRecordingComplete,
   isUploadingVoice,
@@ -592,7 +594,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           <Button 
             type="submit" 
             size="icon" 
-            disabled={!messageInput.trim()}
+            disabled={!selectedRoom || !currentUserId || isSending || !messageInput.trim()}
             className={cn(
               "rounded-xl h-11 w-11 transition-all",
               messageInput.trim() 
@@ -600,7 +602,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                 : "bg-muted"
             )}
           >
-            <Send className="w-4 h-4" />
+            {isSending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </Button>
         </form>
       </div>
