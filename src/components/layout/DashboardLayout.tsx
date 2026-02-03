@@ -5,15 +5,16 @@ import Sidebar from './Sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { NotificationsDropdown } from '@/components/layout/NotificationsDropdown';
 import { cn } from '@/lib/utils';
-import { Menu } from 'lucide-react';
+import { Menu, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const DashboardLayout: React.FC = () => {
-  const { user, loading, profile, role } = useAuth();
+  const { user, loading, profile, role, refreshProfile } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const location = useLocation();
   const isMobile = useIsMobile();
 
@@ -38,6 +39,49 @@ const DashboardLayout: React.FC = () => {
             <Skeleton className="h-8 w-48" />
             <Skeleton className="h-32 w-full" />
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading with retry option when profile/role hasn't loaded yet
+  if (!profile || !role) {
+    const handleRetry = async () => {
+      setIsRetrying(true);
+      await refreshProfile();
+      setIsRetrying(false);
+    };
+
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4 p-6">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold">Loading your dashboard...</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Fetching your profile and permissions
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={handleRetry}
+            disabled={isRetrying}
+            className="mt-4"
+          >
+            {isRetrying ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Retrying...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Retry Now
+              </>
+            )}
+          </Button>
         </div>
       </div>
     );

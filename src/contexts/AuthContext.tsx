@@ -32,7 +32,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string, retryCount = 0) => {
+    const maxRetries = 5;
+    const baseDelay = 1000; // 1 second
+    
     try {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -41,6 +44,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (profileError) {
+        // Check if it's a timeout error and retry
+        if (profileError.message?.includes('timeout') && retryCount < maxRetries) {
+          const delay = baseDelay * Math.pow(2, retryCount);
+          console.warn(`Profile fetch timeout, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+          setTimeout(() => fetchProfile(userId, retryCount + 1), delay);
+          return;
+        }
         console.error('Error fetching profile:', profileError);
         return;
       }
@@ -54,13 +64,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (roleError) {
+        // Check if it's a timeout error and retry
+        if (roleError.message?.includes('timeout') && retryCount < maxRetries) {
+          const delay = baseDelay * Math.pow(2, retryCount);
+          console.warn(`Role fetch timeout, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+          setTimeout(() => fetchProfile(userId, retryCount + 1), delay);
+          return;
+        }
         console.error('Error fetching role:', roleError);
         return;
       }
 
       setRole(roleData?.role as AppRole | null);
     } catch (error) {
-      console.error('Error in fetchProfile:', error);
+      // Network errors - retry
+      if (retryCount < maxRetries) {
+        const delay = baseDelay * Math.pow(2, retryCount);
+        console.warn(`Profile fetch failed, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+        setTimeout(() => fetchProfile(userId, retryCount + 1), delay);
+        return;
+      }
+      console.error('Error in fetchProfile after retries:', error);
     }
   }, []);
 
