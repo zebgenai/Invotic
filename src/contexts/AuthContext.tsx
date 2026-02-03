@@ -36,6 +36,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const maxRetries = 5;
     const baseDelay = 1000; // 1 second
     
+    const isRetryableError = (error: { message?: string; code?: string } | null) => {
+      if (!error) return false;
+      const msg = error.message?.toLowerCase() || '';
+      const code = error.code || '';
+      return msg.includes('timeout') || 
+             msg.includes('503') || 
+             msg.includes('504') ||
+             msg.includes('network') ||
+             msg.includes('fetch') ||
+             code === '503' ||
+             code === '504';
+    };
+    
     try {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -44,14 +57,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (profileError) {
-        // Check if it's a timeout error and retry
-        if (profileError.message?.includes('timeout') && retryCount < maxRetries) {
+        if (isRetryableError(profileError) && retryCount < maxRetries) {
           const delay = baseDelay * Math.pow(2, retryCount);
-          console.warn(`Profile fetch timeout, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+          console.warn(`Profile fetch error, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
           setTimeout(() => fetchProfile(userId, retryCount + 1), delay);
           return;
         }
         console.error('Error fetching profile:', profileError);
+        // Set fallback values after max retries to unblock the UI
+        if (retryCount >= maxRetries) {
+          setProfile({ user_id: userId, full_name: 'User', kyc_status: 'pending' } as Profile);
+          setRole('user' as AppRole);
+        }
         return;
       }
 
@@ -64,14 +81,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (roleError) {
-        // Check if it's a timeout error and retry
-        if (roleError.message?.includes('timeout') && retryCount < maxRetries) {
+        if (isRetryableError(roleError) && retryCount < maxRetries) {
           const delay = baseDelay * Math.pow(2, retryCount);
-          console.warn(`Role fetch timeout, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+          console.warn(`Role fetch error, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
           setTimeout(() => fetchProfile(userId, retryCount + 1), delay);
           return;
         }
         console.error('Error fetching role:', roleError);
+        // Set fallback role to unblock UI
+        if (retryCount >= maxRetries) {
+          setRole('user' as AppRole);
+        }
         return;
       }
 
@@ -85,6 +105,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       console.error('Error in fetchProfile after retries:', error);
+      // Set fallback values after max retries to unblock the UI
+      setProfile({ user_id: userId, full_name: 'User', kyc_status: 'pending' } as Profile);
+      setRole('user' as AppRole);
     }
   }, []);
 
