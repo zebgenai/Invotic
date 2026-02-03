@@ -72,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let isMounted = true;
+    let initialLoadComplete = false;
 
     // Initial auth load - controls isLoading
     const initializeAuth = async () => {
@@ -86,6 +87,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (currentSession?.user) {
           await fetchProfile(currentSession.user.id);
         }
+        
+        initialLoadComplete = true;
       } catch (error) {
         console.error('Error initializing auth:', error);
       } finally {
@@ -95,23 +98,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Listener for ONGOING auth changes (does NOT control isLoading)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
+      async (event, currentSession) => {
         if (!isMounted) return;
         
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+        // Skip initial SIGNED_IN event if we already loaded
+        if (!initialLoadComplete || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
 
-        if (currentSession?.user) {
-          // Fire and forget - don't await, don't set loading
-          fetchProfile(currentSession.user.id);
-        } else {
-          setProfile(null);
-          setRole(null);
-        }
-
-        if (event === 'SIGNED_OUT') {
-          setProfile(null);
-          setRole(null);
+          if (currentSession?.user && event !== 'TOKEN_REFRESHED') {
+            await fetchProfile(currentSession.user.id);
+          } else if (!currentSession?.user) {
+            setProfile(null);
+            setRole(null);
+          }
         }
       }
     );
