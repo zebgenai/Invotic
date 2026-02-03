@@ -20,9 +20,13 @@ import {
   Rocket,
   Instagram,
   Linkedin,
-  Facebook
+  Facebook,
+  Wrench
 } from "lucide-react";
 import { useEffect, useState } from "react";
+
+// Set to true to show maintenance banner
+const MAINTENANCE_MODE = true;
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -99,8 +103,21 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Maintenance Banner */}
+      {MAINTENANCE_MODE && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-warning/90 via-warning to-warning/90 text-warning-foreground py-3 px-4 shadow-lg">
+          <div className="max-w-4xl mx-auto flex items-center justify-center gap-3 text-center">
+            <Wrench className="w-5 h-5 animate-pulse flex-shrink-0" />
+            <p className="text-sm md:text-base font-medium">
+              <span className="font-bold">🚧 Scheduled Maintenance:</span> We're upgrading our servers for a better experience. We'll be back online shortly. Thank you for your patience!
+            </p>
+            <Wrench className="w-5 h-5 animate-pulse flex-shrink-0 hidden sm:block" />
+          </div>
+        </div>
+      )}
+
       {/* Animated 3D Background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none perspective-1000">
+      <div className={`absolute inset-0 overflow-hidden pointer-events-none perspective-1000 ${MAINTENANCE_MODE ? 'pt-12' : ''}`}>
         {/* Animated gradient orbs with 3D depth */}
         <div 
           className="absolute top-1/4 left-1/4 w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-primary/30 rounded-full blur-[80px] md:blur-[120px] animate-float-slow"
@@ -143,7 +160,7 @@ const Index = () => {
       </div>
 
       {/* Navigation with glassmorphism */}
-      <nav className="relative z-10 flex items-center justify-between px-4 py-3 md:px-12 md:py-4 backdrop-blur-sm border-b border-border/50">
+      <nav className={`relative z-10 flex items-center justify-between px-4 py-3 md:px-12 md:py-4 backdrop-blur-sm border-b border-border/50 ${MAINTENANCE_MODE ? 'mt-12' : ''}`}>
         <div className="flex items-center gap-2 md:gap-3 group cursor-pointer">
           <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-primary to-accent p-0.5 group-hover:shadow-lg group-hover:shadow-primary/25 transition-all duration-300 transform group-hover:scale-110">
             <div className="w-full h-full rounded-[10px] bg-background flex items-center justify-center">
