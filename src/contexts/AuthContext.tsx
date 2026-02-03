@@ -72,9 +72,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let isMounted = true;
-    let initialLoadComplete = false;
 
-    // Initial auth load - controls isLoading
+    // IMPORTANT: keep this callback synchronous (no await / no extra backend calls)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        if (!isMounted) return;
+
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+
+        if (event === 'SIGNED_OUT' || !currentSession?.user) {
+          setProfile(null);
+          setRole(null);
+          return;
+        }
+
+        // Defer profile/role fetch to avoid doing backend calls inside auth callback
+        setTimeout(() => {
+          if (!isMounted) return;
+          fetchProfile(currentSession.user.id);
+        }, 0);
+      }
+    );
+
+    // Initial auth load - controls loading
     const initializeAuth = async () => {
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
@@ -83,38 +104,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
 
-        // Fetch profile BEFORE setting loading false
+        // Non-blocking: fetch profile/role in the background
         if (currentSession?.user) {
-          await fetchProfile(currentSession.user.id);
+          setTimeout(() => {
+            if (!isMounted) return;
+            fetchProfile(currentSession.user.id);
+          }, 0);
         }
-        
-        initialLoadComplete = true;
       } catch (error) {
         console.error('Error initializing auth:', error);
       } finally {
         if (isMounted) setLoading(false);
       }
     };
-
-    // Listener for ONGOING auth changes (does NOT control isLoading)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        if (!isMounted) return;
-        
-        // Skip initial SIGNED_IN event if we already loaded
-        if (!initialLoadComplete || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
-          setSession(currentSession);
-          setUser(currentSession?.user ?? null);
-
-          if (currentSession?.user && event !== 'TOKEN_REFRESHED') {
-            await fetchProfile(currentSession.user.id);
-          } else if (!currentSession?.user) {
-            setProfile(null);
-            setRole(null);
-          }
-        }
-      }
-    );
 
     initializeAuth();
 
