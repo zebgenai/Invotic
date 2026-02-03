@@ -180,13 +180,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: error as Error | null };
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    return { error: error as Error | null };
+  const signIn = async (email: string, password: string, retryCount = 0): Promise<{ error: Error | null }> => {
+    const maxRetries = 3;
+    const timeout = 15000; // 15 seconds timeout
+    
+    try {
+      // Race between signIn and timeout
+      const result = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout - server is slow, retrying...')), timeout)
+        )
+      ]);
+      
+      return { error: result.error as Error | null };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Retry on timeout or network errors
+      if (retryCount < maxRetries && (errorMessage.includes('timeout') || errorMessage.includes('network'))) {
+        console.warn(`Sign in attempt ${retryCount + 1} failed, retrying...`);
+        // Wait a bit before retrying
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return signIn(email, password, retryCount + 1);
+      }
+      
+      return { error: error as Error };
+    }
   };
 
   const signOut = async () => {
