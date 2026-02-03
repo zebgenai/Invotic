@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useChatEnabled } from '@/hooks/useAppSettings';
 import {
   LayoutDashboard,
   Users,
@@ -36,8 +37,10 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onMobileClose }) => {
   const { profile, role, signOut } = useAuth();
+  const { chatEnabled } = useChatEnabled();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const isAdmin = role === 'admin';
 
   const handleSignOut = async () => {
     await signOut();
@@ -94,16 +97,24 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onMo
   const isKycApproved = profile?.kyc_status === 'approved';
 
   const getNavItems = () => {
+    let items: typeof adminItems = [];
+    
     if (role === 'admin') {
-      return [...adminItems, ...commonItems];
+      items = [...adminItems, ...commonItems];
+    } else if (role === 'manager') {
+      items = [...managerItems, ...commonItems];
+    } else if (!isKycApproved) {
+      items = kycPendingItems;
+    } else {
+      items = [...userItems, ...commonItems];
     }
-    if (role === 'manager') {
-      return [...managerItems, ...commonItems];
+    
+    // Filter out chat if disabled for non-admin users
+    if (!chatEnabled && !isAdmin) {
+      items = items.filter(item => item.path !== '/dashboard/chat');
     }
-    if (!isKycApproved) {
-      return kycPendingItems;
-    }
-    return [...userItems, ...commonItems];
+    
+    return items;
   };
 
   const navItems = getNavItems();
