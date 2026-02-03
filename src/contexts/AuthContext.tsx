@@ -166,11 +166,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Clear local state immediately for instant logout
     setUser(null);
     setSession(null);
     setProfile(null);
     setRole(null);
+    
+    // Attempt server signout but don't wait for it
+    try {
+      await Promise.race([
+        supabase.auth.signOut(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+      ]);
+    } catch (error) {
+      console.warn('Sign out request failed or timed out, but local session cleared');
+    }
   };
 
   return (
