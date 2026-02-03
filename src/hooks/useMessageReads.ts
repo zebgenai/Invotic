@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
 interface MessageRead {
   id: string;
@@ -31,7 +31,7 @@ export const useMessageReads = (messageId: string | null) => {
       return data as MessageRead[];
     },
     enabled: !!messageId,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 60 * 1000, // 1 minute
   });
 };
 
@@ -44,11 +44,13 @@ export const useRoomMessageReads = (roomId: string | null) => {
     queryFn: async () => {
       if (!roomId) return {};
 
-      // Get all message IDs in the room
+      // Get all message IDs in the room (limit to recent messages for performance)
       const { data: messages, error: messagesError } = await supabase
         .from('messages')
         .select('id')
-        .eq('room_id', roomId);
+        .eq('room_id', roomId)
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       if (messagesError) throw messagesError;
 
@@ -78,12 +80,15 @@ export const useRoomMessageReads = (roomId: string | null) => {
       return readsByMessage;
     },
     enabled: !!roomId,
-    staleTime: 10 * 1000, // 10 seconds
+    staleTime: 60 * 1000, // 1 minute (increased from 10s)
+    refetchOnWindowFocus: false,
   });
 
-  // Subscribe to realtime changes
+  // Subscribe to realtime changes - debounced
   useEffect(() => {
     if (!roomId) return;
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     const channel = supabase
       .channel(`message-reads-${roomId}`)
@@ -95,13 +100,17 @@ export const useRoomMessageReads = (roomId: string | null) => {
           table: 'message_reads',
         },
         () => {
-          // Invalidate to refresh read counts
-          queryClient.invalidateQueries({ queryKey: ['room-message-reads', roomId] });
+          // Debounce invalidations to prevent rapid re-fetches
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['room-message-reads', roomId] });
+          }, 2000);
         }
       )
       .subscribe();
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
   }, [roomId, queryClient]);
@@ -131,44 +140,89 @@ export const useMarkMessageAsRead = () => {
           }
         )
         .select()
-        .single();
+        .maybeSingle();
 
-      if (error && !error.message.includes('duplicate')) throw error;
+      // Ignore constraint/duplicate errors
+      if (error && !error.message.includes('duplicate') && !error.code?.startsWith('23')) {
+        throw error;
+      }
       return { data, roomId };
     },
     onSuccess: (result) => {
       if (result?.roomId) {
-        queryClient.invalidateQueries({ queryKey: ['room-message-reads', result.roomId] });
+        // Debounce query invalidation
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['room-message-reads', result.roomId] });
+        }, 1000);
       }
     },
   });
 };
 
-// Hook to mark all visible messages as read when entering a room
+// Hook to mark all visible messages as read when entering a room - with debouncing
 export const useMarkMessagesAsRead = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const pendingIdsRef = useRef<Set<string>>(new Set());
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastRoomIdRef = useRef<string | null>(null);
 
-  return useMutation({
-    mutationFn: async ({ messageIds, roomId }: { messageIds: string[]; roomId: string }) => {
-      if (!user?.id || messageIds.length === 0) return null;
+  const flushPending = useCallback(async (roomId: string) => {
+    if (!user?.id || pendingIdsRef.current.size === 0) return;
 
-      // Insert read receipts for all messages (ignore duplicates)
-      const reads = messageIds.map((messageId) => ({
+    const messageIds = Array.from(pendingIdsRef.current);
+    pendingIdsRef.current.clear();
+
+    // Limit batch size to prevent DB overload
+    const BATCH_SIZE = 10;
+    const batch = messageIds.slice(0, BATCH_SIZE);
+
+    if (batch.length === 0) return;
+
+    try {
+      const reads = batch.map((messageId) => ({
         message_id: messageId,
         user_id: user.id,
       }));
 
       const { error } = await supabase
         .from('message_reads')
-        .upsert(reads, { onConflict: 'message_id,user_id' });
+        .upsert(reads, { onConflict: 'message_id,user_id', ignoreDuplicates: true });
 
-      if (error && !error.message.includes('duplicate')) throw error;
+      // Ignore constraint/duplicate errors
+      if (error && !error.message.includes('duplicate') && !error.code?.startsWith('23')) {
+        console.error('Error marking messages as read:', error);
+      }
+    } catch (err) {
+      console.error('Failed to mark messages as read:', err);
+    }
+  }, [user?.id]);
+
+  return useMutation({
+    mutationFn: async ({ messageIds, roomId }: { messageIds: string[]; roomId: string }) => {
+      if (!user?.id || messageIds.length === 0) return null;
+
+      // Add to pending set
+      messageIds.forEach(id => pendingIdsRef.current.add(id));
+      lastRoomIdRef.current = roomId;
+
+      // Debounce the actual API call
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      debounceTimerRef.current = setTimeout(() => {
+        flushPending(roomId);
+      }, 1500); // Wait 1.5s before sending
+
       return { roomId };
     },
     onSuccess: (result) => {
       if (result?.roomId) {
-        queryClient.invalidateQueries({ queryKey: ['room-message-reads', result.roomId] });
+        // Delay query invalidation significantly to reduce churn
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['room-message-reads', result.roomId] });
+        }, 3000);
       }
     },
   });
