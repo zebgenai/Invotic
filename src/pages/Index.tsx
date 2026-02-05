@@ -26,7 +26,7 @@ import {
 import { useEffect, useState } from "react";
 
 // Set to true to show maintenance banner
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 const Index = () => {
   const { user, loading } = useAuth();

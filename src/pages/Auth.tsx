@@ -12,7 +12,7 @@ import { useSignupEnabled } from '@/hooks/useAppSettings';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Set to true to show maintenance banner
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 const specialties = [
   { value: 'script_writer', label: 'Script Writer', icon: PenLine },
