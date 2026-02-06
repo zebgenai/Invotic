@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-const GUILD_ID = '1469174487785275605';
+const GUILD_ID = '1469174486627778747';
 
 interface DiscordMessage {
   id: string;
