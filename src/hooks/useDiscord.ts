@@ -3,6 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 
 const GUILD_ID = '1469174486627778747';
 
+interface DiscordAttachment {
+  id: string;
+  filename: string;
+  url: string;
+  proxy_url: string;
+  content_type?: string;
+  width?: number;
+  height?: number;
+}
+
 interface DiscordMessage {
   id: string;
   content: string;
@@ -13,7 +23,12 @@ interface DiscordMessage {
     discriminator: string;
   };
   timestamp: string;
-  attachments: any[];
+  attachments: DiscordAttachment[];
+  mentions: Array<{
+    id: string;
+    username: string;
+  }>;
+  mention_everyone: boolean;
 }
 
 interface DiscordChannel {
@@ -65,9 +80,19 @@ export const useSendDiscordMessage = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ channelId, content }: { channelId: string; content: string }) => {
+    mutationFn: async ({ 
+      channelId, 
+      content, 
+      imageBase64, 
+      imageName 
+    }: { 
+      channelId: string; 
+      content?: string;
+      imageBase64?: string;
+      imageName?: string;
+    }) => {
       const { data, error } = await supabase.functions.invoke('discord', {
-        body: { action: 'sendMessage', channelId, content },
+        body: { action: 'sendMessage', channelId, content, imageBase64, imageName },
       });
 
       if (error) throw error;
@@ -80,3 +105,5 @@ export const useSendDiscordMessage = () => {
     },
   });
 };
+
+export type { DiscordMessage, DiscordChannel, DiscordAttachment };
