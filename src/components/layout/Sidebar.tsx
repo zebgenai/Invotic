@@ -61,6 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onMo
     { icon: Youtube, label: 'All Channels', path: '/dashboard/channels' },
     { icon: CheckSquare, label: 'All Tasks', path: '/dashboard/tasks' },
     { icon: MessageCircle, label: 'Chat Rooms', path: '/dashboard/chat' },
+    { icon: MessageCircle, label: 'Discord', path: '/dashboard/discord' },
     { icon: Megaphone, label: 'Announcements', path: '/dashboard/announcements' },
     { icon: BarChart3, label: 'Analytics', path: '/dashboard/analytics' },
   ];
