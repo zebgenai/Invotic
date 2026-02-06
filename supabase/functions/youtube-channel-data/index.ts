@@ -8,18 +8,18 @@ function extractChannelId(url: string): { type: 'channel' | 'handle' | 'user' | 
   const patterns = [
     // Channel ID format: youtube.com/channel/UC...
     { regex: /youtube\.com\/channel\/(UC[\w-]+)/i, type: 'channel' as const },
-    // Handle format: youtube.com/@handle
-    { regex: /youtube\.com\/@([\w.-]+)/i, type: 'handle' as const },
+    // Handle format: youtube.com/@handle (supports underscores, dots, hyphens)
+    { regex: /youtube\.com\/@([\w._-]+)/i, type: 'handle' as const },
     // User format: youtube.com/user/username
-    { regex: /youtube\.com\/user\/([\w-]+)/i, type: 'user' as const },
+    { regex: /youtube\.com\/user\/([\w._-]+)/i, type: 'user' as const },
     // Custom URL format: youtube.com/c/customname
-    { regex: /youtube\.com\/c\/([\w-]+)/i, type: 'custom' as const },
+    { regex: /youtube\.com\/c\/([\w._-]+)/i, type: 'custom' as const },
     // Video URL format: youtube.com/watch?v=VIDEO_ID
     { regex: /youtube\.com\/watch\?v=([\w-]+)/i, type: 'video' as const },
     // Short video URL format: youtu.be/VIDEO_ID
     { regex: /youtu\.be\/([\w-]+)/i, type: 'video' as const },
     // Direct custom URL: youtube.com/customname (fallback)
-    { regex: /youtube\.com\/([\w-]+)$/i, type: 'custom' as const },
+    { regex: /youtube\.com\/([\w._-]+)$/i, type: 'custom' as const },
   ];
 
   for (const pattern of patterns) {
@@ -117,13 +117,28 @@ async function fetchLatestVideos(apiKey: string, channelId: string, maxResults: 
 
 // Resolve handle/username to channel ID
 async function resolveToChannelId(apiKey: string, identifier: string, type: 'handle' | 'user' | 'custom'): Promise<string | null> {
-  // For handles, use the search API with exact matching
+  // Clean up identifier - remove trailing slashes, query params
+  const cleanIdentifier = identifier.split('?')[0].replace(/\/$/, '');
+  
+  // For handles, use the forHandle parameter (YouTube API v3)
   if (type === 'handle') {
-    // Try searching with the @ prefix for better matching
-    const searchQuery = `@${identifier}`;
+    console.log('Trying forHandle API for:', cleanIdentifier);
+    
+    // Try using forHandle parameter first (most reliable)
+    const handleUrl = `https://www.googleapis.com/youtube/v3/channels?part=id,snippet&forHandle=${encodeURIComponent(cleanIdentifier)}&key=${apiKey}`;
+    const handleResponse = await fetch(handleUrl);
+    const handleData = await handleResponse.json();
+    
+    if (handleResponse.ok && handleData.items && handleData.items.length > 0) {
+      console.log('Found channel via forHandle:', handleData.items[0].snippet?.title);
+      return handleData.items[0].id;
+    }
+    
+    // Fallback to search API with @ prefix
+    const searchQuery = `@${cleanIdentifier}`;
     console.log('Searching for handle:', searchQuery);
     
-    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(searchQuery)}&maxResults=5&key=${apiKey}`;
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(searchQuery)}&maxResults=10&key=${apiKey}`;
     const searchResponse = await fetch(searchUrl);
     const searchData = await searchResponse.json();
     
@@ -134,19 +149,29 @@ async function resolveToChannelId(apiKey: string, identifier: string, type: 'han
     
     console.log('Search results:', JSON.stringify(searchData.items?.map((i: any) => ({ 
       id: i.snippet?.channelId, 
-      title: i.snippet?.title,
-      customUrl: i.snippet?.customUrl 
+      title: i.snippet?.title
     }))));
     
     if (searchData.items && searchData.items.length > 0) {
-      // Return the first channel result
+      // Try to find exact match first
+      const exactMatch = searchData.items.find((item: any) => {
+        const title = item.snippet?.title?.toLowerCase() || '';
+        const handleLower = cleanIdentifier.toLowerCase().replace(/_/g, '');
+        return title.replace(/[^a-z0-9]/gi, '').includes(handleLower.replace(/[^a-z0-9]/gi, ''));
+      });
+      
+      if (exactMatch) {
+        return exactMatch.snippet?.channelId || exactMatch.id?.channelId;
+      }
+      
+      // Return first result as fallback
       return searchData.items[0].snippet?.channelId || searchData.items[0].id?.channelId;
     }
   }
   
   // For user type, use forUsername parameter
   if (type === 'user') {
-    const url = `https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${identifier}&key=${apiKey}`;
+    const url = `https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${cleanIdentifier}&key=${apiKey}`;
     const response = await fetch(url);
     const data = await response.json();
     
@@ -155,14 +180,29 @@ async function resolveToChannelId(apiKey: string, identifier: string, type: 'han
     }
   }
   
-  // Fallback: general search
-  console.log('Fallback search for:', identifier);
-  const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(identifier)}&maxResults=1&key=${apiKey}`;
-  const searchResponse = await fetch(searchUrl);
-  const searchData = await searchResponse.json();
+  // Fallback: general search with multiple attempts
+  console.log('Fallback search for:', cleanIdentifier);
+  
+  // Try with exact name first
+  let searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(cleanIdentifier)}&maxResults=5&key=${apiKey}`;
+  let searchResponse = await fetch(searchUrl);
+  let searchData = await searchResponse.json();
   
   if (searchResponse.ok && searchData.items && searchData.items.length > 0) {
     return searchData.items[0].snippet?.channelId || searchData.items[0].id?.channelId;
+  }
+  
+  // Try with spaces instead of underscores
+  const spacedIdentifier = cleanIdentifier.replace(/_/g, ' ');
+  if (spacedIdentifier !== cleanIdentifier) {
+    console.log('Trying with spaces:', spacedIdentifier);
+    searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(spacedIdentifier)}&maxResults=5&key=${apiKey}`;
+    searchResponse = await fetch(searchUrl);
+    searchData = await searchResponse.json();
+    
+    if (searchResponse.ok && searchData.items && searchData.items.length > 0) {
+      return searchData.items[0].snippet?.channelId || searchData.items[0].id?.channelId;
+    }
   }
   
   return null;
