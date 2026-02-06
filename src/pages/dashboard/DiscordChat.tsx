@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useDiscordChannels, useDiscordMessages, useSendDiscordMessage } from '@/hooks/useDiscord';
+import { useDiscordChannels, useDiscordMessages, useSendDiscordMessage, DiscordMessage } from '@/hooks/useDiscord';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,15 +7,36 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Send, Hash, RefreshCw, MessageCircle, AlertCircle } from 'lucide-react';
+import { 
+  Send, 
+  Hash, 
+  RefreshCw, 
+  MessageCircle, 
+  AlertCircle, 
+  Image as ImageIcon,
+  X,
+  AtSign,
+  Loader2
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const DiscordChat: React.FC = () => {
   const { profile } = useAuth();
+  const { toast } = useToast();
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState('');
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const { data: channels, isLoading: channelsLoading, error: channelsError, refetch: refetchChannels } = useDiscordChannels();
   const { data: messages, isLoading: messagesLoading, error: messagesError, refetch: refetchMessages } = useDiscordMessages(selectedChannel);
@@ -33,23 +54,140 @@ const DiscordChat: React.FC = () => {
     }
   }, [channels, selectedChannel]);
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 8 * 1024 * 1024) { // 8MB limit for Discord
+        toast({
+          title: 'File too large',
+          description: 'Discord allows files up to 8MB',
+          variant: 'destructive',
+        });
+        return;
+      }
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const insertMention = (mention: string) => {
+    setMessageInput(prev => prev + mention + ' ');
+    inputRef.current?.focus();
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageInput.trim() || !selectedChannel) return;
+    if ((!messageInput.trim() && !selectedImage) || !selectedChannel) return;
 
-    const content = `[${profile?.full_name || 'User'}]: ${messageInput}`;
+    let content = messageInput.trim();
+    if (content) {
+      content = `[${profile?.full_name || 'User'}]: ${content}`;
+    }
     
     try {
-      await sendMessage.mutateAsync({ channelId: selectedChannel, content });
+      let imageBase64: string | undefined;
+      let imageName: string | undefined;
+
+      if (selectedImage) {
+        const reader = new FileReader();
+        const base64Promise = new Promise<string>((resolve) => {
+          reader.onload = () => {
+            const result = reader.result as string;
+            // Remove the data:image/xxx;base64, prefix
+            const base64 = result.split(',')[1];
+            resolve(base64);
+          };
+        });
+        reader.readAsDataURL(selectedImage);
+        imageBase64 = await base64Promise;
+        imageName = selectedImage.name;
+      }
+
+      await sendMessage.mutateAsync({ 
+        channelId: selectedChannel, 
+        content: content || undefined,
+        imageBase64,
+        imageName
+      });
       setMessageInput('');
+      clearImage();
     } catch (error) {
       console.error('Failed to send message:', error);
+      toast({
+        title: 'Failed to send',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
     }
   };
 
   const getAvatarUrl = (author: { id: string; avatar: string | null }) => {
     if (!author.avatar) return null;
     return `https://cdn.discordapp.com/avatars/${author.id}/${author.avatar}.png`;
+  };
+
+  const renderMessageContent = (message: DiscordMessage) => {
+    let content = message.content;
+    
+    // Highlight @everyone mentions
+    if (message.mention_everyone) {
+      content = content.replace(/@everyone/g, '<span class="bg-[#5865F2]/30 text-[#5865F2] px-1 rounded">@everyone</span>');
+    }
+    
+    // Highlight user mentions
+    message.mentions?.forEach(mention => {
+      content = content.replace(
+        new RegExp(`<@!?${mention.id}>`, 'g'),
+        `<span class="bg-[#5865F2]/30 text-[#5865F2] px-1 rounded">@${mention.username}</span>`
+      );
+    });
+
+    return (
+      <div className="space-y-2">
+        {content && (
+          <p 
+            className="text-sm break-words" 
+            dangerouslySetInnerHTML={{ __html: content }}
+          />
+        )}
+        {message.attachments?.map((attachment) => (
+          <div key={attachment.id} className="mt-2">
+            {attachment.content_type?.startsWith('image/') ? (
+              <a href={attachment.url} target="_blank" rel="noopener noreferrer">
+                <img 
+                  src={attachment.proxy_url || attachment.url} 
+                  alt={attachment.filename}
+                  className="max-w-xs md:max-w-sm rounded-lg border border-border hover:opacity-90 transition-opacity"
+                  style={{ maxHeight: '300px' }}
+                />
+              </a>
+            ) : (
+              <a 
+                href={attachment.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 p-2 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
+              >
+                <ImageIcon className="w-4 h-4" />
+                <span className="text-sm truncate">{attachment.filename}</span>
+              </a>
+            )}
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -77,15 +215,15 @@ const DiscordChat: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-[calc(100vh-200px)]">
         {/* Channels Sidebar */}
-        <Card className="md:col-span-1">
+        <Card className="md:col-span-1 bg-[#2B2D31] border-[#1E1F22]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Channels</CardTitle>
+            <CardTitle className="text-sm font-medium text-[#B5BAC1]">TEXT CHANNELS</CardTitle>
           </CardHeader>
           <CardContent className="p-2">
             {channelsLoading ? (
               <div className="space-y-2">
                 {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-8 w-full" />
+                  <Skeleton key={i} className="h-8 w-full bg-[#3B3D44]" />
                 ))}
               </div>
             ) : channelsError ? (
@@ -98,19 +236,19 @@ const DiscordChat: React.FC = () => {
               </div>
             ) : (
               <ScrollArea className="h-[calc(100vh-300px)]">
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {channels?.map((channel) => (
                     <button
                       key={channel.id}
                       onClick={() => setSelectedChannel(channel.id)}
                       className={cn(
-                        'w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors',
+                        'w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left transition-colors group',
                         selectedChannel === channel.id
-                          ? 'bg-[#5865F2]/20 text-[#5865F2]'
-                          : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                          ? 'bg-[#404249] text-white'
+                          : 'text-[#949BA4] hover:bg-[#35373C] hover:text-[#DBDEE1]'
                       )}
                     >
-                      <Hash className="w-4 h-4 flex-shrink-0" />
+                      <Hash className="w-5 h-5 flex-shrink-0 text-[#80848E]" />
                       <span className="truncate">{channel.name}</span>
                     </button>
                   ))}
@@ -121,30 +259,32 @@ const DiscordChat: React.FC = () => {
         </Card>
 
         {/* Messages Area */}
-        <Card className="md:col-span-3 flex flex-col">
-          <CardHeader className="pb-2 border-b">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
+        <Card className="md:col-span-3 flex flex-col bg-[#313338] border-[#1E1F22]">
+          <CardHeader className="pb-2 border-b border-[#3B3D44]">
+            <CardTitle className="text-sm font-medium flex items-center gap-2 text-white">
               {selectedChannel && channels ? (
                 <>
-                  <Hash className="w-4 h-4" />
-                  {channels.find(c => c.id === selectedChannel)?.name || 'Channel'}
+                  <Hash className="w-5 h-5 text-[#80848E]" />
+                  <span className="font-semibold">
+                    {channels.find(c => c.id === selectedChannel)?.name || 'Channel'}
+                  </span>
                 </>
               ) : (
                 'Select a channel'
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col p-0">
+          <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
             {/* Messages */}
             <ScrollArea className="flex-1 p-4">
               {messagesLoading ? (
                 <div className="space-y-4">
                   {[...Array(5)].map((_, i) => (
                     <div key={i} className="flex gap-3">
-                      <Skeleton className="w-10 h-10 rounded-full" />
+                      <Skeleton className="w-10 h-10 rounded-full bg-[#3B3D44]" />
                       <div className="flex-1 space-y-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-32 bg-[#3B3D44]" />
+                        <Skeleton className="h-4 w-full bg-[#3B3D44]" />
                       </div>
                     </div>
                   ))}
@@ -158,48 +298,40 @@ const DiscordChat: React.FC = () => {
                   </p>
                 </div>
               ) : !selectedChannel ? (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-[#949BA4]">
                   <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p>Select a channel to view messages</p>
                 </div>
               ) : messages?.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-[#949BA4]">
                   <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p>No messages in this channel</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {messages?.map((message) => (
-                    <div key={message.id} className="flex gap-3 group">
+                    <div
+                      key={message.id}
+                      className="flex gap-3 hover:bg-[#2E3035] p-1 -mx-1 rounded group"
+                    >
                       <Avatar className="w-10 h-10 flex-shrink-0">
-                        <AvatarImage src={getAvatarUrl(message.author) || ''} />
-                        <AvatarFallback className="bg-[#5865F2]/20 text-[#5865F2]">
+                        <AvatarImage src={getAvatarUrl(message.author) || undefined} />
+                        <AvatarFallback className="bg-[#5865F2] text-white">
                           {message.author.username.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline gap-2">
-                          <span className="font-semibold text-sm">{message.author.username}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {format(new Date(message.timestamp), 'MMM d, h:mm a')}
+                          <span className="font-medium text-[#F2F3F5] hover:underline cursor-pointer">
+                            {message.author.username}
+                          </span>
+                          <span className="text-xs text-[#949BA4]">
+                            {format(new Date(message.timestamp), 'MM/dd/yyyy h:mm a')}
                           </span>
                         </div>
-                        <p className="text-sm break-words whitespace-pre-wrap">{message.content}</p>
-                        {message.attachments?.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {message.attachments.map((attachment: any) => (
-                              <a
-                                key={attachment.id}
-                                href={attachment.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-primary hover:underline"
-                              >
-                                📎 {attachment.filename}
-                              </a>
-                            ))}
-                          </div>
-                        )}
+                        <div className="text-[#DBDEE1]">
+                          {renderMessageContent(message)}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -208,27 +340,101 @@ const DiscordChat: React.FC = () => {
               )}
             </ScrollArea>
 
+            {/* Image Preview */}
+            {imagePreview && (
+              <div className="px-4 pb-2">
+                <div className="relative inline-block">
+                  <img 
+                    src={imagePreview} 
+                    alt="Preview" 
+                    className="max-h-32 rounded-lg border border-[#3B3D44]"
+                  />
+                  <button
+                    onClick={clearImage}
+                    className="absolute -top-2 -right-2 p-1 bg-destructive rounded-full text-white hover:bg-destructive/90"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Message Input */}
-            <div className="p-4 border-t">
+            <div className="p-4 pt-0">
               <form onSubmit={handleSendMessage} className="flex gap-2">
-                <Input
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  placeholder={selectedChannel ? "Type a message..." : "Select a channel first"}
-                  disabled={!selectedChannel || sendMessage.isPending}
-                  className="flex-1"
-                />
+                <div className="flex-1 flex items-center gap-2 bg-[#383A40] rounded-lg px-4">
+                  {/* Image Upload Button */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-[#B5BAC1] hover:text-white transition-colors p-1"
+                    title="Upload image"
+                  >
+                    <ImageIcon className="w-5 h-5" />
+                  </button>
+
+                  {/* Mention Button */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="text-[#B5BAC1] hover:text-white transition-colors p-1"
+                        title="Mention"
+                      >
+                        <AtSign className="w-5 h-5" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-2 bg-[#2B2D31] border-[#1E1F22]">
+                      <div className="space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => insertMention('@everyone')}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left rounded hover:bg-[#404249] text-[#DBDEE1]"
+                        >
+                          <span className="text-[#5865F2]">@</span>
+                          everyone
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMention('@here')}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left rounded hover:bg-[#404249] text-[#DBDEE1]"
+                        >
+                          <span className="text-[#5865F2]">@</span>
+                          here
+                        </button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  <Input
+                    ref={inputRef}
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    placeholder={`Message #${channels?.find(c => c.id === selectedChannel)?.name || 'channel'}`}
+                    disabled={!selectedChannel || sendMessage.isPending}
+                    className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-[#DBDEE1] placeholder:text-[#6D6F78]"
+                  />
+                </div>
+
                 <Button
                   type="submit"
-                  disabled={!selectedChannel || !messageInput.trim() || sendMessage.isPending}
-                  className="bg-[#5865F2] hover:bg-[#4752C4]"
+                  disabled={(!messageInput.trim() && !selectedImage) || !selectedChannel || sendMessage.isPending}
+                  className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
                 >
-                  <Send className="w-4 h-4" />
+                  {sendMessage.isPending ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
                 </Button>
               </form>
-              <p className="text-xs text-muted-foreground mt-2">
-                Messages sent will appear as: [{profile?.full_name || 'User'}]: your message
-              </p>
             </div>
           </CardContent>
         </Card>
