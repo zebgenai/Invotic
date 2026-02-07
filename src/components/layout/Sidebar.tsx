@@ -1,7 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useChatEnabled } from '@/hooks/useAppSettings';
 import {
   LayoutDashboard,
   Users,
@@ -37,7 +36,6 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onMobileClose }) => {
   const { profile, role, signOut } = useAuth();
-  const { chatEnabled } = useChatEnabled();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const isAdmin = role === 'admin';
@@ -60,7 +58,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onMo
     { icon: UsersRound, label: 'Teams', path: '/dashboard/teams' },
     { icon: Youtube, label: 'All Channels', path: '/dashboard/channels' },
     { icon: CheckSquare, label: 'All Tasks', path: '/dashboard/tasks' },
-    { icon: MessageCircle, label: 'Chat Rooms', path: '/dashboard/chat' },
     { icon: MessageCircle, label: 'Discord', path: '/dashboard/discord' },
     { icon: Megaphone, label: 'Announcements', path: '/dashboard/announcements' },
     { icon: BarChart3, label: 'Analytics', path: '/dashboard/analytics' },
@@ -70,7 +67,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onMo
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Users, label: 'Team', path: '/dashboard/team' },
     { icon: CheckSquare, label: 'Tasks', path: '/dashboard/tasks' },
-    { icon: MessageCircle, label: 'Chat', path: '/dashboard/chat' },
+    { icon: MessageCircle, label: 'Discord', path: '/dashboard/discord' },
     { icon: Youtube, label: 'Channels', path: '/dashboard/channels' },
   ];
 
@@ -84,7 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onMo
     { icon: FileCheck, label: 'KYC Status', path: '/dashboard/kyc-submit' },
     { icon: Youtube, label: 'My Channel', path: '/dashboard/channel' },
     { icon: CheckSquare, label: 'Tasks', path: '/dashboard/tasks' },
-    { icon: MessageCircle, label: 'Chat', path: '/dashboard/chat' },
+    { icon: MessageCircle, label: 'Discord', path: '/dashboard/discord' },
     { icon: BarChart3, label: 'Stats', path: '/dashboard/stats' },
   ];
 
@@ -98,24 +95,15 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onMo
   const isKycApproved = profile?.kyc_status === 'approved';
 
   const getNavItems = () => {
-    let items: typeof adminItems = [];
-    
     if (role === 'admin') {
-      items = [...adminItems, ...commonItems];
+      return [...adminItems, ...commonItems];
     } else if (role === 'manager') {
-      items = [...managerItems, ...commonItems];
+      return [...managerItems, ...commonItems];
     } else if (!isKycApproved) {
-      items = kycPendingItems;
+      return kycPendingItems;
     } else {
-      items = [...userItems, ...commonItems];
+      return [...userItems, ...commonItems];
     }
-    
-    // Filter out chat if disabled for non-admin users
-    if (!chatEnabled && !isAdmin) {
-      items = items.filter(item => item.path !== '/dashboard/chat');
-    }
-    
-    return items;
   };
 
   const navItems = getNavItems();

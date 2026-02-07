@@ -456,24 +456,6 @@ const Settings: React.FC = () => {
               }}
             />
           </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Chat Messages</p>
-              <p className="text-sm text-muted-foreground">
-                Get notified about new messages
-              </p>
-            </div>
-            <Switch 
-              defaultChecked 
-              onCheckedChange={(checked) => {
-                toast({
-                  title: checked ? 'Chat notifications enabled' : 'Chat notifications disabled',
-                  description: 'Your preference has been saved',
-                });
-              }}
-            />
-          </div>
         </CardContent>
       </Card>
 

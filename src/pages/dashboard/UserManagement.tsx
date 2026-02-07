@@ -692,7 +692,7 @@ const UserManagement: React.FC = () => {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete Selected Users</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will permanently delete {selectedUsers.size} user(s) from the system, including all their data (messages, tasks, teams, etc.). This action cannot be undone.
+                      This will permanently delete {selectedUsers.size} user(s) from the system, including all their data (tasks, teams, etc.). This action cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

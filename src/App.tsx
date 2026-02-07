@@ -15,7 +15,7 @@ import TaskManagement from "./pages/dashboard/TaskManagement";
 import Announcements from "./pages/dashboard/Announcements";
 import Leaderboard from "./pages/dashboard/Leaderboard";
 import Settings from "./pages/dashboard/Settings";
-import Chat from "./pages/dashboard/Chat";
+
 import Forum from "./pages/dashboard/Forum";
 import Resources from "./pages/dashboard/Resources";
 import Analytics from "./pages/dashboard/Analytics";
@@ -57,7 +57,7 @@ const App = () => (
                 <Route path="announcements" element={<Announcements />} />
                 <Route path="leaderboard" element={<Leaderboard />} />
                 <Route path="settings" element={<Settings />} />
-                <Route path="chat" element={<Chat />} />
+                
                 <Route path="forum" element={<Forum />} />
                 <Route path="resources" element={<Resources />} />
                 <Route path="analytics" element={<Analytics />} />

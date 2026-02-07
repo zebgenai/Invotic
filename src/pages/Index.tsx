@@ -77,8 +77,8 @@ const Index = () => {
     },
     {
       icon: MessageCircle,
-      title: "Real-time Chat",
-      description: "Private messages, group chats, and broadcasts",
+      title: "Discord Integration",
+      description: "Connect with your team through Discord chat",
       color: "text-info",
       bg: "bg-info/10",
       gradient: "from-info/20 to-info/5"

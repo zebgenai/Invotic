@@ -61,15 +61,6 @@ export const useDashboardStats = () => {
         .from('youtube_channels')
         .select('id');
 
-      // Get message count for last 7 days
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      
-      const { data: recentMessages } = await supabase
-        .from('messages')
-        .select('id')
-        .gte('created_at', sevenDaysAgo.toISOString());
-
       const kycStats = {
         pending: profiles?.filter(p => p.kyc_status === 'pending').length || 0,
         approved: profiles?.filter(p => p.kyc_status === 'approved').length || 0,
@@ -87,7 +78,6 @@ export const useDashboardStats = () => {
         kycStats,
         taskStats,
         totalChannels: channels?.length || 0,
-        weeklyMessages: recentMessages?.length || 0,
       };
     },
     enabled: !!user && (role === 'admin' || role === 'manager'),
@@ -212,12 +202,6 @@ export const useChartData = () => {
         .from('tasks')
         .select('status, created_at');
 
-      // Get real message data
-      const { data: messages } = await supabase
-        .from('messages')
-        .select('created_at')
-        .gte('created_at', subDays(new Date(), 7).toISOString());
-
       const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       
       // Calculate real upload/activity frequency based on channel updates
@@ -282,7 +266,6 @@ export const useChartData = () => {
         uploadFrequency,
         channelGrowth,
         userContribution,
-        weeklyMessages: messages?.length || 0,
       };
     },
     enabled: !!user && (role === 'admin' || role === 'manager'),
