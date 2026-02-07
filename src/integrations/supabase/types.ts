@@ -160,79 +160,6 @@ export type Database = {
           },
         ]
       }
-      chat_room_members: {
-        Row: {
-          can_post: boolean
-          id: string
-          joined_at: string
-          room_id: string
-          user_id: string
-        }
-        Insert: {
-          can_post?: boolean
-          id?: string
-          joined_at?: string
-          room_id: string
-          user_id: string
-        }
-        Update: {
-          can_post?: boolean
-          id?: string
-          joined_at?: string
-          room_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_room_members_room_id_fkey"
-            columns: ["room_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_rooms: {
-        Row: {
-          created_at: string
-          created_by: string
-          id: string
-          is_broadcast: boolean
-          is_group: boolean
-          is_public: boolean
-          name: string | null
-          workspace_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by: string
-          id?: string
-          is_broadcast?: boolean
-          is_group?: boolean
-          is_public?: boolean
-          name?: string | null
-          workspace_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string
-          id?: string
-          is_broadcast?: boolean
-          is_group?: boolean
-          is_public?: boolean
-          name?: string | null
-          workspace_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_rooms_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       forum_replies: {
         Row: {
           author_id: string
@@ -311,114 +238,6 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      message_reactions: {
-        Row: {
-          created_at: string
-          emoji: string
-          id: string
-          message_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          emoji: string
-          id?: string
-          message_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          emoji?: string
-          id?: string
-          message_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "message_reactions_message_id_fkey"
-            columns: ["message_id"]
-            isOneToOne: false
-            referencedRelation: "messages"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      message_reads: {
-        Row: {
-          id: string
-          message_id: string
-          read_at: string
-          user_id: string
-        }
-        Insert: {
-          id?: string
-          message_id: string
-          read_at?: string
-          user_id: string
-        }
-        Update: {
-          id?: string
-          message_id?: string
-          read_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "message_reads_message_id_fkey"
-            columns: ["message_id"]
-            isOneToOne: false
-            referencedRelation: "messages"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      messages: {
-        Row: {
-          content: string | null
-          created_at: string
-          deleted_for: string[] | null
-          file_type: string | null
-          file_url: string | null
-          id: string
-          is_read: boolean
-          room_id: string
-          sender_id: string
-          updated_at: string
-        }
-        Insert: {
-          content?: string | null
-          created_at?: string
-          deleted_for?: string[] | null
-          file_type?: string | null
-          file_url?: string | null
-          id?: string
-          is_read?: boolean
-          room_id: string
-          sender_id: string
-          updated_at?: string
-        }
-        Update: {
-          content?: string | null
-          created_at?: string
-          deleted_for?: string[] | null
-          file_type?: string | null
-          file_url?: string | null
-          id?: string
-          is_read?: boolean
-          room_id?: string
-          sender_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "messages_room_id_fkey"
-            columns: ["room_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
             referencedColumns: ["id"]
           },
         ]
@@ -856,14 +675,6 @@ export type Database = {
         Returns: boolean
       }
       is_primary_owner: { Args: { check_user_id: string }; Returns: boolean }
-      is_room_creator: {
-        Args: { _room_id: string; _user_id: string }
-        Returns: boolean
-      }
-      is_room_member: {
-        Args: { _room_id: string; _user_id: string }
-        Returns: boolean
-      }
     }
     Enums: {
       app_role: "admin" | "manager" | "user"
