@@ -120,6 +120,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let isMounted = true;
 
+    // Check if this is a new browser session (browser was closed and reopened)
+    // We use sessionStorage to track if the session has been validated in this browser session
+    const SESSION_VALIDATED_KEY = 'partnerunityx-session-validated';
+    const isNewBrowserSession = !sessionStorage.getItem(SESSION_VALIDATED_KEY);
+
     // IMPORTANT: keep this callback synchronous (no await / no extra backend calls)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
@@ -131,8 +136,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (event === 'SIGNED_OUT' || !currentSession?.user) {
           setProfile(null);
           setRole(null);
+          // Clear the session validation flag on sign out
+          sessionStorage.removeItem(SESSION_VALIDATED_KEY);
           return;
         }
+
+        // Mark session as validated for this browser session
+        sessionStorage.setItem(SESSION_VALIDATED_KEY, 'true');
 
         // Defer profile/role fetch to avoid doing backend calls inside auth callback
         setTimeout(() => {
@@ -145,6 +155,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Initial auth load - controls loading
     const initializeAuth = async () => {
       try {
+        // If this is a new browser session, sign out any existing session
+        // This ensures users are redirected to landing page after closing browser
+        if (isNewBrowserSession) {
+          // Clear any persisted session from localStorage
+          await supabase.auth.signOut();
+          if (!isMounted) return;
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setRole(null);
+          setLoading(false);
+          return;
+        }
+
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         if (!isMounted) return;
 
