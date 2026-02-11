@@ -33,79 +33,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string, retryCount = 0) => {
-    const maxRetries = 5;
-    const baseDelay = 1000; // 1 second
-    
-    const isRetryableError = (error: { message?: string; code?: string } | null) => {
-      if (!error) return false;
-      const msg = error.message?.toLowerCase() || '';
-      const code = error.code || '';
-      return msg.includes('timeout') || 
-             msg.includes('503') || 
-             msg.includes('504') ||
-             msg.includes('network') ||
-             msg.includes('fetch') ||
-             code === '503' ||
-             code === '504';
-    };
+    const maxRetries = 2;
+    const baseDelay = 500;
     
     try {
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
+      // Fetch profile and role in parallel for speed
+      const [profileResult, roleResult] = await Promise.all([
+        supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
+        supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
+      ]);
 
-      if (profileError) {
-        if (isRetryableError(profileError) && retryCount < maxRetries) {
+      if (profileResult.error || roleResult.error) {
+        if (retryCount < maxRetries) {
           const delay = baseDelay * Math.pow(2, retryCount);
-          console.warn(`Profile fetch error, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
           setTimeout(() => fetchProfile(userId, retryCount + 1), delay);
           return;
         }
-        console.error('Error fetching profile:', profileError);
-        // Set fallback values after max retries to unblock the UI
-        if (retryCount >= maxRetries) {
-          setProfile({ user_id: userId, full_name: 'User', kyc_status: 'pending' } as Profile);
-          setRole('user' as AppRole);
-        }
+        console.error('Profile/role fetch failed after retries');
+        setProfile({ user_id: userId, full_name: 'User', kyc_status: 'pending' } as Profile);
+        setRole('user' as AppRole);
         return;
       }
 
-      setProfile(profileData as Profile | null);
-
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (roleError) {
-        if (isRetryableError(roleError) && retryCount < maxRetries) {
-          const delay = baseDelay * Math.pow(2, retryCount);
-          console.warn(`Role fetch error, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
-          setTimeout(() => fetchProfile(userId, retryCount + 1), delay);
-          return;
-        }
-        console.error('Error fetching role:', roleError);
-        // Set fallback role to unblock UI
-        if (retryCount >= maxRetries) {
-          setRole('user' as AppRole);
-        }
-        return;
-      }
-
-      setRole(roleData?.role as AppRole | null);
+      setProfile(profileResult.data as Profile | null);
+      setRole(roleResult.data?.role as AppRole | null);
     } catch (error) {
-      // Network errors - retry
       if (retryCount < maxRetries) {
-        const delay = baseDelay * Math.pow(2, retryCount);
-        console.warn(`Profile fetch failed, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
-        setTimeout(() => fetchProfile(userId, retryCount + 1), delay);
+        setTimeout(() => fetchProfile(userId, retryCount + 1), baseDelay * Math.pow(2, retryCount));
         return;
       }
       console.error('Error in fetchProfile after retries:', error);
-      // Set fallback values after max retries to unblock the UI
       setProfile({ user_id: userId, full_name: 'User', kyc_status: 'pending' } as Profile);
       setRole('user' as AppRole);
     }
@@ -227,31 +184,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: error as Error | null };
   };
 
-  const signIn = async (email: string, password: string, retryCount = 0): Promise<{ error: Error | null }> => {
-    const maxRetries = 3;
-    const timeout = 15000; // 15 seconds timeout
-    
+  const signIn = async (email: string, password: string): Promise<{ error: Error | null }> => {
     try {
-      // Race between signIn and timeout
-      const result = await Promise.race([
-        supabase.auth.signInWithPassword({ email, password }),
-        new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout - server is slow, retrying...')), timeout)
-        )
-      ]);
-      
+      const result = await supabase.auth.signInWithPassword({ email, password });
       return { error: result.error as Error | null };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      // Retry on timeout or network errors
-      if (retryCount < maxRetries && (errorMessage.includes('timeout') || errorMessage.includes('network'))) {
-        console.warn(`Sign in attempt ${retryCount + 1} failed, retrying...`);
-        // Wait a bit before retrying
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        return signIn(email, password, retryCount + 1);
-      }
-      
       return { error: error as Error };
     }
   };

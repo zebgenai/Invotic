@@ -5,17 +5,15 @@ import Sidebar from './Sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { NotificationsDropdown } from '@/components/layout/NotificationsDropdown';
 import { cn } from '@/lib/utils';
-import { Menu, RefreshCw, Loader2 } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const DashboardLayout: React.FC = () => {
-  const { user, loading, profile, role, refreshProfile } = useAuth();
+  const { user, loading, profile, role } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isRetrying, setIsRetrying] = useState(false);
-  const [loadingTooLong, setLoadingTooLong] = useState(false);
   const location = useLocation();
   const isMobile = useIsMobile();
 
@@ -24,21 +22,12 @@ const DashboardLayout: React.FC = () => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
-  // Show skip option after 15 seconds of waiting for profile
-  React.useEffect(() => {
-    if (!profile || !role) {
-      const timer = setTimeout(() => setLoadingTooLong(true), 15000);
-      return () => clearTimeout(timer);
-    }
-    setLoadingTooLong(false);
-  }, [profile, role]);
-
-  // Redirect to auth if not logged in (check immediately, no loading state needed)
+  // Redirect to auth if not logged in
   if (!loading && !user) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Show minimal skeleton while auth is being determined
+  // Show minimal skeleton only while auth session is being determined
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex">
@@ -48,64 +37,6 @@ const DashboardLayout: React.FC = () => {
           <div className="p-6 space-y-4">
             <Skeleton className="h-8 w-48" />
             <Skeleton className="h-32 w-full" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show loading with retry option when profile/role hasn't loaded yet
-  if (!profile || !role) {
-    const handleRetry = async () => {
-      setIsRetrying(true);
-      await refreshProfile();
-      setIsRetrying(false);
-    };
-
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4 p-6 max-w-md">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold">Loading your dashboard...</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              {loadingTooLong 
-                ? 'The server is experiencing high load. You can continue or retry.'
-                : 'Fetching your profile and permissions'
-              }
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2 justify-center">
-            <Button
-              variant="outline"
-              onClick={handleRetry}
-              disabled={isRetrying}
-            >
-              {isRetrying ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Retrying...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Retry Now
-                </>
-              )}
-            </Button>
-            {loadingTooLong && (
-              <Button
-                variant="default"
-                onClick={() => {
-                  // Force a minimal profile to unblock UI
-                  window.location.reload();
-                }}
-              >
-                Refresh Page
-              </Button>
-            )}
           </div>
         </div>
       </div>
