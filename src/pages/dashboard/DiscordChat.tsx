@@ -139,28 +139,85 @@ const DiscordChat: React.FC = () => {
   };
 
   const renderMessageContent = (message: DiscordMessage) => {
-    let content = message.content;
+    const content = message.content || '';
     
-    // Highlight @everyone mentions
-    if (message.mention_everyone) {
-      content = content.replace(/@everyone/g, '<span class="bg-[#5865F2]/30 text-[#5865F2] px-1 rounded">@everyone</span>');
-    }
-    
-    // Highlight user mentions
-    message.mentions?.forEach(mention => {
-      content = content.replace(
-        new RegExp(`<@!?${mention.id}>`, 'g'),
-        `<span class="bg-[#5865F2]/30 text-[#5865F2] px-1 rounded">@${mention.username}</span>`
-      );
-    });
+    // Parse message content into safe React elements
+    const parseContent = (text: string): React.ReactNode[] => {
+      const parts: React.ReactNode[] = [];
+      let remaining = text;
+      let keyIndex = 0;
+
+      // Build a combined regex for all mention patterns
+      const mentionPatterns: { regex: RegExp; label: string }[] = [];
+      
+      if (message.mention_everyone) {
+        mentionPatterns.push({ regex: /@everyone/g, label: '@everyone' });
+        mentionPatterns.push({ regex: /@here/g, label: '@here' });
+      }
+      
+      message.mentions?.forEach(mention => {
+        mentionPatterns.push({ 
+          regex: new RegExp(`<@!?${mention.id}>`, 'g'), 
+          label: `@${mention.username}` 
+        });
+      });
+
+      if (mentionPatterns.length === 0) {
+        return [<span key="text">{text}</span>];
+      }
+
+      // Find all mention matches and sort by position
+      const matches: { index: number; length: number; label: string }[] = [];
+      for (const pattern of mentionPatterns) {
+        let match;
+        const regex = new RegExp(pattern.regex.source, 'g');
+        while ((match = regex.exec(text)) !== null) {
+          matches.push({ index: match.index, length: match[0].length, label: pattern.label });
+        }
+      }
+      matches.sort((a, b) => a.index - b.index);
+
+      let lastIndex = 0;
+      for (const m of matches) {
+        if (m.index > lastIndex) {
+          parts.push(<span key={keyIndex++}>{remaining.slice(lastIndex - (text.length - remaining.length), m.index - (text.length - remaining.length))}</span>);
+        }
+        parts.push(
+          <span key={keyIndex++} className="bg-[#5865F2]/30 text-[#5865F2] px-1 rounded">
+            {m.label}
+          </span>
+        );
+        lastIndex = m.index + m.length;
+      }
+
+      // Rebuild using absolute positions
+      parts.length = 0;
+      keyIndex = 0;
+      let pos = 0;
+      for (const m of matches) {
+        if (m.index > pos) {
+          parts.push(<span key={keyIndex++}>{text.slice(pos, m.index)}</span>);
+        }
+        parts.push(
+          <span key={keyIndex++} className="bg-[#5865F2]/30 text-[#5865F2] px-1 rounded">
+            {m.label}
+          </span>
+        );
+        pos = m.index + m.length;
+      }
+      if (pos < text.length) {
+        parts.push(<span key={keyIndex++}>{text.slice(pos)}</span>);
+      }
+
+      return parts;
+    };
 
     return (
       <div className="space-y-2">
         {content && (
-          <p 
-            className="text-sm break-words" 
-            dangerouslySetInnerHTML={{ __html: content }}
-          />
+          <p className="text-sm break-words">
+            {parseContent(content)}
+          </p>
         )}
         {message.attachments?.map((attachment) => (
           <div key={attachment.id} className="mt-2">
