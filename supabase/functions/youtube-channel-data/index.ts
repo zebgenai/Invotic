@@ -240,6 +240,22 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Enforce role-based access: only admin and manager roles allowed
+    const userId = claimsData.claims.sub;
+    const { data: roleData } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .single();
+
+    const userRole = roleData?.role;
+    if (!['admin', 'manager'].includes(userRole || '')) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Insufficient permissions. Admin or manager role required.' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { channel_link } = await req.json();
 
     if (!channel_link) {
