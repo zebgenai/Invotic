@@ -143,11 +143,6 @@ const DiscordChat: React.FC = () => {
     
     // Parse message content into safe React elements
     const parseContent = (text: string): React.ReactNode[] => {
-      const parts: React.ReactNode[] = [];
-      let remaining = text;
-      let keyIndex = 0;
-
-      // Build a combined regex for all mention patterns
       const mentionPatterns: { regex: RegExp; label: string }[] = [];
       
       if (message.mention_everyone) {
@@ -166,33 +161,18 @@ const DiscordChat: React.FC = () => {
         return [<span key="text">{text}</span>];
       }
 
-      // Find all mention matches and sort by position
       const matches: { index: number; length: number; label: string }[] = [];
       for (const pattern of mentionPatterns) {
-        let match;
         const regex = new RegExp(pattern.regex.source, 'g');
+        let match;
         while ((match = regex.exec(text)) !== null) {
           matches.push({ index: match.index, length: match[0].length, label: pattern.label });
         }
       }
       matches.sort((a, b) => a.index - b.index);
 
-      let lastIndex = 0;
-      for (const m of matches) {
-        if (m.index > lastIndex) {
-          parts.push(<span key={keyIndex++}>{remaining.slice(lastIndex - (text.length - remaining.length), m.index - (text.length - remaining.length))}</span>);
-        }
-        parts.push(
-          <span key={keyIndex++} className="bg-[#5865F2]/30 text-[#5865F2] px-1 rounded">
-            {m.label}
-          </span>
-        );
-        lastIndex = m.index + m.length;
-      }
-
-      // Rebuild using absolute positions
-      parts.length = 0;
-      keyIndex = 0;
+      const parts: React.ReactNode[] = [];
+      let keyIndex = 0;
       let pos = 0;
       for (const m of matches) {
         if (m.index > pos) {
