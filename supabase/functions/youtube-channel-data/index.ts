@@ -231,9 +231,8 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid authentication token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -241,7 +240,7 @@ Deno.serve(async (req) => {
     }
 
     // Enforce role-based access: only admin and manager roles allowed
-    const userId = claimsData.claims.sub;
+    const userId = user.id;
     const { data: roleData } = await supabaseClient
       .from('user_roles')
       .select('role')
@@ -276,47 +275,47 @@ Deno.serve(async (req) => {
 
     console.log('Processing channel link:', channel_link);
 
+    let channelId: string;
     // Extract channel identifier from URL
     const extracted = extractChannelId(channel_link);
     
     if (!extracted) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Invalid YouTube channel URL format' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Extracted:', extracted);
-
-    let channelId: string;
-
-    if (extracted.type === 'channel') {
-      // Direct channel ID
-      channelId = extracted.value;
-    } else if (extracted.type === 'video') {
-      // Video URL - extract channel from video
-      const resolvedId = await getChannelFromVideo(apiKey, extracted.value);
-      
-      if (!resolvedId) {
+      // Last resort: try treating the whole input as a handle or search query
+      console.log('No pattern matched, trying as direct handle:', channel_link);
+      const cleanInput = channel_link.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '');
+      const fallbackId = await resolveToChannelId(apiKey, cleanInput, 'custom');
+      if (!fallbackId) {
         return new Response(
-          JSON.stringify({ success: false, error: 'Could not find channel from video. Please try using the channel URL instead.' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ success: false, error: 'Invalid YouTube channel URL format' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
-      channelId = resolvedId;
+      // Use the fallback result
+      channelId = fallbackId;
     } else {
-      // Need to resolve handle/user/custom to channel ID
-      const resolvedId = await resolveToChannelId(apiKey, extracted.value, extracted.type);
-      
-      if (!resolvedId) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Could not find YouTube channel. Please try using the channel ID URL format (youtube.com/channel/UC...)' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      console.log('Extracted:', extracted);
+
+      if (extracted.type === 'channel') {
+        channelId = extracted.value;
+      } else if (extracted.type === 'video') {
+        const resolvedId = await getChannelFromVideo(apiKey, extracted.value);
+        if (!resolvedId) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Could not find channel from video. Please try using the channel URL instead.' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        channelId = resolvedId;
+      } else {
+        const resolvedId = await resolveToChannelId(apiKey, extracted.value, extracted.type);
+        if (!resolvedId) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Could not find YouTube channel. Please try using the channel ID URL format (youtube.com/channel/UC...)' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        channelId = resolvedId;
       }
-      
-      channelId = resolvedId;
     }
 
     console.log('Fetching data for channel ID:', channelId);
