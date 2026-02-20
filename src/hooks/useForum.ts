@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ForumThread, ForumReply } from '@/types/database';
+import { ForumThread, ForumReply, ForumReaction } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const useForumThreads = () => {
@@ -60,18 +60,58 @@ export const useForumReplies = (threadId: string) => {
   });
 };
 
+export const useForumReactions = (threadId: string) => {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['forum-reactions', threadId],
+    queryFn: async () => {
+      // Get reactions for the thread itself
+      const { data: threadReactions, error: e1 } = await supabase
+        .from('forum_reactions')
+        .select('*')
+        .eq('thread_id', threadId);
+
+      if (e1) throw e1;
+
+      // Get reactions for all replies in this thread
+      const { data: replies } = await supabase
+        .from('forum_replies')
+        .select('id')
+        .eq('thread_id', threadId);
+
+      const replyIds = replies?.map((r: any) => r.id) || [];
+      let replyReactions: ForumReaction[] = [];
+
+      if (replyIds.length > 0) {
+        const { data, error: e2 } = await supabase
+          .from('forum_reactions')
+          .select('*')
+          .in('reply_id', replyIds);
+
+        if (e2) throw e2;
+        replyReactions = (data || []) as ForumReaction[];
+      }
+
+      return [...(threadReactions || []), ...replyReactions] as ForumReaction[];
+    },
+    enabled: !!user && !!threadId,
+  });
+};
+
 export const useCreateThread = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ title, content }: { title: string; content: string }) => {
+    mutationFn: async ({ title, content, is_locked }: { title: string; content: string; is_locked?: boolean }) => {
       const { data, error } = await supabase
         .from('forum_threads')
         .insert({
           title,
           content,
           author_id: user?.id,
+          is_locked: is_locked || false,
         })
         .select()
         .single();
@@ -125,6 +165,70 @@ export const useDeleteThread = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['forum-threads'] });
+    },
+  });
+};
+
+export const useToggleThreadLock = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ threadId, is_locked }: { threadId: string; is_locked: boolean }) => {
+      const { error } = await supabase
+        .from('forum_threads')
+        .update({ is_locked })
+        .eq('id', threadId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['forum-threads'] });
+      queryClient.invalidateQueries({ queryKey: ['forum-thread'] });
+    },
+  });
+};
+
+export const useToggleReaction = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ emoji, threadId, replyId }: { emoji: string; threadId?: string; replyId?: string }) => {
+      if (!user) throw new Error('Not authenticated');
+
+      // Check if reaction exists
+      let query = supabase
+        .from('forum_reactions')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('emoji', emoji);
+
+      if (threadId) query = query.eq('thread_id', threadId);
+      if (replyId) query = query.eq('reply_id', replyId);
+
+      const { data: existing } = await query;
+
+      if (existing && existing.length > 0) {
+        // Remove reaction
+        const { error } = await supabase
+          .from('forum_reactions')
+          .delete()
+          .eq('id', existing[0].id);
+        if (error) throw error;
+      } else {
+        // Add reaction
+        const insertData: any = { user_id: user.id, emoji };
+        if (threadId) insertData.thread_id = threadId;
+        if (replyId) insertData.reply_id = replyId;
+
+        const { error } = await supabase
+          .from('forum_reactions')
+          .insert(insertData);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['forum-reactions'] });
     },
   });
 };

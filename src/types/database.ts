@@ -187,3 +187,12 @@ export interface ForumReply {
   created_at: string;
   updated_at: string;
 }
+
+export interface ForumReaction {
+  id: string;
+  user_id: string;
+  thread_id: string | null;
+  reply_id: string | null;
+  emoji: string;
+  created_at: string;
+}

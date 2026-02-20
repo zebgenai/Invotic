@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useForumThreads, useForumReplies, useCreateThread, useCreateReply, useDeleteThread } from '@/hooks/useForum';
+import { useForumThreads, useForumReplies, useForumReactions, useCreateThread, useCreateReply, useDeleteThread, useToggleThreadLock } from '@/hooks/useForum';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -18,12 +18,14 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import ReactionBar from '@/components/forum/ReactionBar';
 import {
   MessageSquare,
   Plus,
   ArrowLeft,
   Pin,
   Lock,
+  Unlock,
   Eye,
   MessageCircle,
   Search,
@@ -39,44 +41,46 @@ const Forum: React.FC = () => {
   const createThread = useCreateThread();
   const createReply = useCreateReply();
   const deleteThread = useDeleteThread();
+  const toggleThreadLock = useToggleThreadLock();
   const { toast } = useToast();
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [newThread, setNewThread] = useState({ title: '', content: '' });
+  const [newThread, setNewThread] = useState({ title: '', content: '', disableComments: false });
   const [replyContent, setReplyContent] = useState('');
 
   const { data: replies } = useForumReplies(selectedThread || '');
+  const { data: reactions } = useForumReactions(selectedThread || '');
 
   const getAuthorProfile = (authorId: string) => {
     if (authorId === user?.id) return profile;
     return profiles?.find((p) => p.user_id === authorId);
   };
 
+  const getReactionsFor = (threadId?: string, replyId?: string) => {
+    if (!reactions) return [];
+    return reactions.filter((r) =>
+      threadId ? r.thread_id === threadId : r.reply_id === replyId
+    );
+  };
+
   const handleCreateThread = async () => {
     if (!newThread.title.trim() || !newThread.content.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all fields.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Please fill in all fields.', variant: 'destructive' });
       return;
     }
 
     try {
-      await createThread.mutateAsync(newThread);
-      toast({
-        title: 'Thread created!',
-        description: 'Your discussion has been posted.',
+      await createThread.mutateAsync({
+        title: newThread.title,
+        content: newThread.content,
+        is_locked: newThread.disableComments,
       });
-      setNewThread({ title: '', content: '' });
+      toast({ title: 'Thread created!', description: 'Your discussion has been posted.' });
+      setNewThread({ title: '', content: '', disableComments: false });
       setIsCreateDialogOpen(false);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to create thread. Make sure your KYC is approved.',
-        variant: 'destructive',
-      });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to create thread. Make sure your KYC is approved.', variant: 'destructive' });
     }
   };
 
@@ -84,38 +88,33 @@ const Forum: React.FC = () => {
     if (!replyContent.trim() || !selectedThread) return;
 
     try {
-      await createReply.mutateAsync({
-        threadId: selectedThread,
-        content: replyContent.trim(),
-      });
-      toast({
-        title: 'Reply posted!',
-        description: 'Your reply has been added.',
-      });
+      await createReply.mutateAsync({ threadId: selectedThread, content: replyContent.trim() });
+      toast({ title: 'Reply posted!', description: 'Your reply has been added.' });
       setReplyContent('');
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to post reply. Make sure your KYC is approved.',
-        variant: 'destructive',
-      });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to post reply. Make sure your KYC is approved.', variant: 'destructive' });
     }
   };
 
   const handleDeleteThread = async (threadId: string) => {
     try {
       await deleteThread.mutateAsync(threadId);
-      toast({
-        title: 'Thread deleted',
-        description: 'The thread has been removed.',
-      });
+      toast({ title: 'Thread deleted', description: 'The thread has been removed.' });
       setSelectedThread(null);
-    } catch (error) {
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete thread.', variant: 'destructive' });
+    }
+  };
+
+  const handleToggleLock = async (threadId: string, currentLocked: boolean) => {
+    try {
+      await toggleThreadLock.mutateAsync({ threadId, is_locked: !currentLocked });
       toast({
-        title: 'Error',
-        description: 'Failed to delete thread.',
-        variant: 'destructive',
+        title: currentLocked ? 'Comments enabled' : 'Comments disabled',
+        description: currentLocked ? 'Users can now reply to this thread.' : 'Replies have been turned off.',
       });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update thread.', variant: 'destructive' });
     }
   };
 
@@ -126,51 +125,57 @@ const Forum: React.FC = () => {
   );
 
   const currentThread = threads?.find((t) => t.id === selectedThread);
-
   const canPost = profile?.kyc_status === 'approved' || role === 'admin' || role === 'manager';
+  const isAdmin = role === 'admin';
 
+  // Thread Detail View
   if (selectedThread && currentThread) {
     const author = getAuthorProfile(currentThread.author_id);
 
     return (
       <div className="space-y-6">
-        {/* Back button */}
         <Button variant="ghost" onClick={() => setSelectedThread(null)} className="gap-2">
           <ArrowLeft className="w-4 h-4" />
           Back to Forum
         </Button>
 
-        {/* Thread */}
         <Card className="glass-card">
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
                   {currentThread.is_pinned && (
-                    <Badge className="badge-info">
-                      <Pin className="w-3 h-3 mr-1" />
-                      Pinned
-                    </Badge>
+                    <Badge className="badge-info"><Pin className="w-3 h-3 mr-1" />Pinned</Badge>
                   )}
                   {currentThread.is_locked && (
-                    <Badge className="badge-warning">
-                      <Lock className="w-3 h-3 mr-1" />
-                      Locked
-                    </Badge>
+                    <Badge className="badge-warning"><Lock className="w-3 h-3 mr-1" />Comments Off</Badge>
                   )}
                 </div>
                 <CardTitle className="text-2xl">{currentThread.title}</CardTitle>
               </div>
-              {(currentThread.author_id === user?.id || role === 'admin') && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:bg-destructive/10"
-                  onClick={() => handleDeleteThread(currentThread.id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
+              <div className="flex items-center gap-1">
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => handleToggleLock(currentThread.id, currentThread.is_locked)}
+                    title={currentThread.is_locked ? 'Enable comments' : 'Disable comments'}
+                  >
+                    {currentThread.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                  </Button>
+                )}
+                {(currentThread.author_id === user?.id || isAdmin) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:bg-destructive/10"
+                    onClick={() => handleDeleteThread(currentThread.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-3 mt-4">
               <Avatar>
@@ -189,15 +194,12 @@ const Forum: React.FC = () => {
           </CardHeader>
           <CardContent>
             <p className="whitespace-pre-wrap">{currentThread.content}</p>
-            <div className="flex items-center gap-4 mt-6 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Eye className="w-4 h-4" />
-                {currentThread.view_count} views
-              </span>
-              <span className="flex items-center gap-1">
-                <MessageCircle className="w-4 h-4" />
-                {replies?.length || 0} replies
-              </span>
+            <div className="flex items-center gap-4 mt-4 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1"><Eye className="w-4 h-4" />{currentThread.view_count} views</span>
+              <span className="flex items-center gap-1"><MessageCircle className="w-4 h-4" />{replies?.length || 0} replies</span>
+            </div>
+            <div className="mt-3">
+              <ReactionBar reactions={getReactionsFor(currentThread.id)} threadId={currentThread.id} />
             </div>
           </CardContent>
         </Card>
@@ -205,10 +207,9 @@ const Forum: React.FC = () => {
         {/* Replies */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Replies ({replies?.length || 0})</h3>
-          
+
           {replies?.map((reply) => {
             const replyAuthor = getAuthorProfile(reply.author_id);
-            
             return (
               <Card key={reply.id} className="glass-card">
                 <CardContent className="pt-4">
@@ -227,6 +228,9 @@ const Forum: React.FC = () => {
                         </span>
                       </div>
                       <p className="mt-2 whitespace-pre-wrap">{reply.content}</p>
+                      <div className="mt-2">
+                        <ReactionBar reactions={getReactionsFor(undefined, reply.id)} replyId={reply.id} />
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -252,10 +256,7 @@ const Forum: React.FC = () => {
                       onChange={(e) => setReplyContent(e.target.value)}
                       rows={3}
                     />
-                    <Button
-                      onClick={handleCreateReply}
-                      disabled={!replyContent.trim() || createReply.isPending}
-                    >
+                    <Button onClick={handleCreateReply} disabled={!replyContent.trim() || createReply.isPending}>
                       <Send className="w-4 h-4 mr-2" />
                       {createReply.isPending ? 'Posting...' : 'Post Reply'}
                     </Button>
@@ -265,12 +266,19 @@ const Forum: React.FC = () => {
             </Card>
           )}
 
-          {!canPost && (
+          {currentThread.is_locked && (
+            <Card className="glass-card border-muted">
+              <CardContent className="py-6 text-center">
+                <Lock className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-muted-foreground">Comments are turned off for this thread.</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {!currentThread.is_locked && !canPost && (
             <Card className="glass-card border-warning/50">
               <CardContent className="py-6 text-center">
-                <p className="text-warning">
-                  Your KYC must be approved to post replies.
-                </p>
+                <p className="text-warning">Your KYC must be approved to post replies.</p>
               </CardContent>
             </Card>
           )}
@@ -279,15 +287,13 @@ const Forum: React.FC = () => {
     );
   }
 
+  // Thread List View
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold">Discussion Forum</h1>
-          <p className="text-muted-foreground mt-1">
-            Share ideas, ask questions, and connect with the community.
-          </p>
+          <p className="text-muted-foreground mt-1">Share ideas, ask questions, and connect with the community.</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
@@ -318,6 +324,16 @@ const Forum: React.FC = () => {
                   rows={6}
                 />
               </div>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">Disable Comments</Label>
+                  <p className="text-xs text-muted-foreground">Turn off replies for this thread</p>
+                </div>
+                <Switch
+                  checked={newThread.disableComments}
+                  onCheckedChange={(checked) => setNewThread({ ...newThread, disableComments: checked })}
+                />
+              </div>
               <Button onClick={handleCreateThread} className="w-full" disabled={createThread.isPending}>
                 {createThread.isPending ? 'Creating...' : 'Create Thread'}
               </Button>
@@ -326,7 +342,6 @@ const Forum: React.FC = () => {
         </Dialog>
       </div>
 
-      {/* Search */}
       <Card className="glass-card">
         <CardContent className="pt-6">
           <div className="relative">
@@ -341,7 +356,6 @@ const Forum: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Threads List */}
       {isLoading ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">Loading threads...</p>
@@ -351,9 +365,7 @@ const Forum: React.FC = () => {
           <CardContent className="py-12 text-center">
             <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">No threads yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Be the first to start a discussion!
-            </p>
+            <p className="text-muted-foreground mb-4">Be the first to start a discussion!</p>
             {canPost && (
               <Button onClick={() => setIsCreateDialogOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -366,7 +378,6 @@ const Forum: React.FC = () => {
         <div className="space-y-4">
           {filteredThreads?.map((thread) => {
             const author = getAuthorProfile(thread.author_id);
-            
             return (
               <Card
                 key={thread.id}
@@ -384,32 +395,20 @@ const Forum: React.FC = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         {thread.is_pinned && (
-                          <Badge className="badge-info text-xs">
-                            <Pin className="w-3 h-3 mr-1" />
-                            Pinned
-                          </Badge>
+                          <Badge className="badge-info text-xs"><Pin className="w-3 h-3 mr-1" />Pinned</Badge>
                         )}
                         {thread.is_locked && (
-                          <Badge className="badge-warning text-xs">
-                            <Lock className="w-3 h-3" />
-                          </Badge>
+                          <Badge className="badge-warning text-xs"><Lock className="w-3 h-3" /></Badge>
                         )}
                       </div>
-                      <h3 className="text-lg font-semibold hover:text-primary transition-colors">
-                        {thread.title}
-                      </h3>
-                      <p className="text-muted-foreground line-clamp-2 mt-1">
-                        {thread.content}
-                      </p>
+                      <h3 className="text-lg font-semibold hover:text-primary transition-colors">{thread.title}</h3>
+                      <p className="text-muted-foreground line-clamp-2 mt-1">{thread.content}</p>
                       <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
                         <span>{author?.full_name || 'Unknown'}</span>
                         <span>•</span>
                         <span>{format(new Date(thread.created_at), 'MMM d, yyyy')}</span>
                         <span>•</span>
-                        <span className="flex items-center gap-1">
-                          <Eye className="w-3 h-3" />
-                          {thread.view_count}
-                        </span>
+                        <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{thread.view_count}</span>
                       </div>
                     </div>
                   </div>
