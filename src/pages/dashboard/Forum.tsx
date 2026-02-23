@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import UserProfileDialog from '@/components/UserProfileDialog';
 import { useForumThreads, useForumReplies, useForumReactions, useCreateThread, useCreateReply, useDeleteThread, useToggleThreadLock } from '@/hooks/useForum';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useAuth } from '@/contexts/AuthContext';
@@ -48,6 +49,7 @@ const Forum: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [newThread, setNewThread] = useState({ title: '', content: '', disableComments: false });
   const [replyContent, setReplyContent] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const { data: replies } = useForumReplies(selectedThread || '');
   const { data: reactions } = useForumReactions(selectedThread || '');
@@ -178,14 +180,14 @@ const Forum: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-3 mt-4">
-              <Avatar>
+              <Avatar className="cursor-pointer hover:ring-2 ring-primary/50 transition-all" onClick={() => setSelectedUserId(currentThread.author_id)}>
                 <AvatarImage src={author?.avatar_url || ''} />
                 <AvatarFallback className="bg-primary/10 text-primary">
                   {author?.full_name?.charAt(0) || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-medium">{author?.full_name || 'Unknown'}</p>
+                <p className="font-medium cursor-pointer hover:text-primary transition-colors" onClick={() => setSelectedUserId(currentThread.author_id)}>{author?.full_name || 'Unknown'}</p>
                 <p className="text-sm text-muted-foreground">
                   {format(new Date(currentThread.created_at), 'MMMM d, yyyy • h:mm a')}
                 </p>
@@ -214,7 +216,7 @@ const Forum: React.FC = () => {
               <Card key={reply.id} className="glass-card">
                 <CardContent className="pt-4">
                   <div className="flex items-start gap-3">
-                    <Avatar>
+                    <Avatar className="cursor-pointer hover:ring-2 ring-primary/50 transition-all" onClick={() => setSelectedUserId(reply.author_id)}>
                       <AvatarImage src={replyAuthor?.avatar_url || ''} />
                       <AvatarFallback className="bg-primary/10 text-primary">
                         {replyAuthor?.full_name?.charAt(0) || 'U'}
@@ -222,7 +224,7 @@ const Forum: React.FC = () => {
                     </Avatar>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">{replyAuthor?.full_name || 'Unknown'}</p>
+                        <p className="font-medium cursor-pointer hover:text-primary transition-colors" onClick={() => setSelectedUserId(reply.author_id)}>{replyAuthor?.full_name || 'Unknown'}</p>
                         <span className="text-xs text-muted-foreground">
                           {format(new Date(reply.created_at), 'MMM d, yyyy • h:mm a')}
                         </span>
@@ -283,6 +285,7 @@ const Forum: React.FC = () => {
             </Card>
           )}
         </div>
+      <UserProfileDialog userId={selectedUserId} open={!!selectedUserId} onOpenChange={(open) => !open && setSelectedUserId(null)} />
       </div>
     );
   }
@@ -386,7 +389,7 @@ const Forum: React.FC = () => {
               >
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-4">
-                    <Avatar>
+                    <Avatar className="cursor-pointer hover:ring-2 ring-primary/50 transition-all" onClick={(e) => { e.stopPropagation(); setSelectedUserId(thread.author_id); }}>
                       <AvatarImage src={author?.avatar_url || ''} />
                       <AvatarFallback className="bg-primary/10 text-primary">
                         {author?.full_name?.charAt(0) || 'U'}
@@ -404,7 +407,7 @@ const Forum: React.FC = () => {
                       <h3 className="text-lg font-semibold hover:text-primary transition-colors">{thread.title}</h3>
                       <p className="text-muted-foreground line-clamp-2 mt-1">{thread.content}</p>
                       <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-                        <span>{author?.full_name || 'Unknown'}</span>
+                        <span className="cursor-pointer hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); setSelectedUserId(thread.author_id); }}>{author?.full_name || 'Unknown'}</span>
                         <span>•</span>
                         <span>{format(new Date(thread.created_at), 'MMM d, yyyy')}</span>
                         <span>•</span>
@@ -418,6 +421,7 @@ const Forum: React.FC = () => {
           })}
         </div>
       )}
+      <UserProfileDialog userId={selectedUserId} open={!!selectedUserId} onOpenChange={(open) => !open && setSelectedUserId(null)} />
     </div>
   );
 };

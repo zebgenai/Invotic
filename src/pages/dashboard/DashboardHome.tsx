@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import UserProfileDialog from '@/components/UserProfileDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useTasks } from '@/hooks/useTasks';
@@ -28,6 +29,7 @@ const DashboardHome: React.FC = () => {
   const { data: channels } = useChannels();
   const { data: announcements } = useAnnouncements();
   const navigate = useNavigate();
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const pendingTasks = tasks?.filter((t) => t.status === 'todo' || t.status === 'in_progress') || [];
   const completedTasks = tasks?.filter((t) => t.status === 'completed') || [];
@@ -256,7 +258,12 @@ const DashboardHome: React.FC = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{channel.channel_name}</p>
-                    <p className="text-xs text-muted-foreground">@{channel.creator_name?.toLowerCase().replace(/\s+/g, '_')}</p>
+                    <p
+                      className="text-xs text-muted-foreground cursor-pointer hover:text-primary transition-colors"
+                      onClick={(e) => { e.stopPropagation(); setSelectedUserId(channel.user_id); }}
+                    >
+                      @{channel.creator_name?.toLowerCase().replace(/\s+/g, '_')}
+                    </p>
                   </div>
                   <div className="flex items-center gap-4 text-sm">
                     <div className="flex items-center gap-1 text-muted-foreground">
@@ -298,11 +305,19 @@ const DashboardHome: React.FC = () => {
                   key={user.id}
                   className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50"
                 >
-                  <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center text-warning font-bold">
+                  <div
+                    className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center text-warning font-bold cursor-pointer hover:ring-2 ring-warning/50 transition-all"
+                    onClick={(e) => { e.stopPropagation(); setSelectedUserId(user.user_id); }}
+                  >
                     {user.full_name.charAt(0)}
                   </div>
                   <div>
-                    <p className="font-medium">{user.full_name}</p>
+                    <p
+                      className="font-medium cursor-pointer hover:text-primary transition-colors"
+                      onClick={(e) => { e.stopPropagation(); setSelectedUserId(user.user_id); }}
+                    >
+                      {user.full_name}
+                    </p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
                   </div>
                 </div>
@@ -311,6 +326,11 @@ const DashboardHome: React.FC = () => {
           </CardContent>
         </Card>
       )}
+      <UserProfileDialog
+        userId={selectedUserId}
+        open={!!selectedUserId}
+        onOpenChange={(open) => !open && setSelectedUserId(null)}
+      />
     </div>
   );
 };

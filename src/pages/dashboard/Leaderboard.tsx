@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import UserProfileDialog from '@/components/UserProfileDialog';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +15,7 @@ type TimeFilter = 'daily' | 'weekly' | 'monthly' | 'all';
 const Leaderboard: React.FC = () => {
   const { user } = useAuth();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   // Fetch YouTube channels with user profiles for leaderboard
   const { data: leaderboardData } = useQuery({
@@ -267,7 +269,7 @@ const Leaderboard: React.FC = () => {
                       }`}
                     >
                       {getRankBadge(entry.rank)}
-                      <Avatar className="w-10 h-10">
+                      <Avatar className="w-10 h-10 cursor-pointer hover:ring-2 ring-primary/50 transition-all" onClick={() => setSelectedUserId(entry.user_id)}>
                         <AvatarImage src={entry.profile?.avatar_url || ''} />
                         <AvatarFallback className="bg-primary/10 text-primary">
                           {entry.profile?.full_name?.charAt(0) || 'U'}
@@ -275,7 +277,7 @@ const Leaderboard: React.FC = () => {
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="font-medium truncate">
+                          <p className="font-medium truncate cursor-pointer hover:text-primary transition-colors" onClick={() => setSelectedUserId(entry.user_id)}>
                             {entry.profile?.full_name || 'Unknown User'}
                           </p>
                           {entry.user_id === user?.id && (
@@ -441,6 +443,11 @@ const Leaderboard: React.FC = () => {
           </Card>
         </div>
       </div>
+      <UserProfileDialog
+        userId={selectedUserId}
+        open={!!selectedUserId}
+        onOpenChange={(open) => !open && setSelectedUserId(null)}
+      />
     </div>
   );
 };
