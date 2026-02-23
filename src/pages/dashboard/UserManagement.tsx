@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import UserProfileDialog from '@/components/UserProfileDialog';
 import { useProfiles, useUpdateKycStatus, useUpdateUserRole, useUserRoles, useDeleteKyc, useDeleteUserProfile } from '@/hooks/useProfiles';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,6 +62,7 @@ const UserManagement: React.FC = () => {
   const [viewingDocument, setViewingDocument] = useState<{ url: string; name: string; type: string } | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   
   const { signupEnabled, isLoading: settingsLoading } = useSignupEnabled();
   const updateSetting = useUpdateAppSetting();
@@ -760,14 +762,22 @@ const UserManagement: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <Avatar>
+                          <Avatar
+                            className="cursor-pointer hover:ring-2 ring-primary/50 transition-all"
+                            onClick={(e) => { e.stopPropagation(); setSelectedUserId(profile.user_id); }}
+                          >
                             <AvatarImage src={profile.avatar_url || ''} />
                             <AvatarFallback className="bg-primary/10 text-primary">
                               {profile.full_name.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="font-medium">{profile.full_name}</p>
+                            <p
+                              className="font-medium cursor-pointer hover:text-primary transition-colors"
+                              onClick={(e) => { e.stopPropagation(); setSelectedUserId(profile.user_id); }}
+                            >
+                              {profile.full_name}
+                            </p>
                             <p className="text-sm text-muted-foreground">{profile.email}</p>
                           </div>
                         </div>
@@ -1028,6 +1038,11 @@ const UserManagement: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+      <UserProfileDialog
+        userId={selectedUserId}
+        open={!!selectedUserId}
+        onOpenChange={(open) => !open && setSelectedUserId(null)}
+      />
     </div>
   );
 };
