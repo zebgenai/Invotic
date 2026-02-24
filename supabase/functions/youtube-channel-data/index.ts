@@ -7,6 +7,9 @@ const corsHeaders = {
 
 // Extract channel ID from various YouTube URL formats
 function extractChannelId(url: string): { type: 'channel' | 'handle' | 'user' | 'custom' | 'video'; value: string } | null {
+  // Strip query parameters and fragments before matching
+  const cleanUrl = url.split('?')[0].split('#')[0].replace(/\/+$/, '');
+
   const patterns = [
     // Channel ID format: youtube.com/channel/UC...
     { regex: /youtube\.com\/channel\/(UC[\w-]+)/i, type: 'channel' as const },
@@ -16,7 +19,7 @@ function extractChannelId(url: string): { type: 'channel' | 'handle' | 'user' | 
     { regex: /youtube\.com\/user\/([\w._-]+)/i, type: 'user' as const },
     // Custom URL format: youtube.com/c/customname
     { regex: /youtube\.com\/c\/([\w._-]+)/i, type: 'custom' as const },
-    // Video URL format: youtube.com/watch?v=VIDEO_ID
+    // Video URL format: youtube.com/watch?v=VIDEO_ID (match against original url since we stripped query params)
     { regex: /youtube\.com\/watch\?v=([\w-]+)/i, type: 'video' as const },
     // Short video URL format: youtu.be/VIDEO_ID
     { regex: /youtu\.be\/([\w-]+)/i, type: 'video' as const },
@@ -25,10 +28,17 @@ function extractChannelId(url: string): { type: 'channel' | 'handle' | 'user' | 
   ];
 
   for (const pattern of patterns) {
-    const match = url.match(pattern.regex);
+    // Use original url for video pattern (needs query params), cleanUrl for everything else
+    const target = pattern.type === 'video' ? url : cleanUrl;
+    const match = target.match(pattern.regex);
     if (match) {
       return { type: pattern.type, value: match[1] };
     }
+  }
+  // Also handle bare @handle input (no youtube.com prefix)
+  const bareHandleMatch = url.match(/^@([\w._-]+)/);
+  if (bareHandleMatch) {
+    return { type: 'handle' as const, value: bareHandleMatch[1] };
   }
 
   return null;
