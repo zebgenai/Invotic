@@ -24,7 +24,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Youtube, Plus, Search, Loader2 } from 'lucide-react';
+import { Youtube, Plus, Search, Loader2, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { YouTubeChannel } from '@/types/database';
 import { supabase } from '@/integrations/supabase/client';
 import ChannelCard from '@/components/dashboard/ChannelCard';
@@ -255,6 +256,32 @@ const ChannelStore: React.FC = () => {
   const canDeleteChannel = (channel: YouTubeChannel) => {
     return channel.user_id === user?.id || role === 'admin' || role === 'manager';
   };
+  const handleExportExcel = () => {
+    if (!channels || channels.length === 0) {
+      toast({ title: 'No data', description: 'No channels to export.', variant: 'destructive' });
+      return;
+    }
+    const data = channels.map((ch) => ({
+      'Channel Name': ch.channel_name,
+      'Creator Name': ch.creator_name,
+      'Channel Link': ch.channel_link,
+      'Subscribers': ch.subscriber_count || 0,
+      'Views': ch.view_count || 0,
+      'Videos': ch.video_count || 0,
+      'Description': ch.description || '',
+      'Added On': new Date(ch.created_at).toLocaleDateString(),
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Channels');
+    // Auto-size columns
+    const colWidths = Object.keys(data[0]).map((key) => ({
+      wch: Math.max(key.length, ...data.map((row) => String(row[key as keyof typeof row]).length).slice(0, 20)) + 2,
+    }));
+    ws['!cols'] = colWidths;
+    XLSX.writeFile(wb, `channels_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast({ title: 'Exported!', description: `${channels.length} channels exported to Excel.` });
+  };
 
 
   return (
@@ -267,13 +294,18 @@ const ChannelStore: React.FC = () => {
             Browse and manage YouTube channels in the community.
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Channel
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleExportExcel} disabled={!channels || channels.length === 0}>
+            <Download className="w-4 h-4 mr-2" />
+            Export Excel
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Channel
+              </Button>
+            </DialogTrigger>
           <DialogContent className="glass-card">
             <DialogHeader>
               <DialogTitle>Add Your Channel</DialogTitle>
@@ -334,6 +366,7 @@ const ChannelStore: React.FC = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Search */}
