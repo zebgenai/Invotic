@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -21,10 +22,10 @@ import {
   Phone,
   Shield,
   Calendar,
-  FileCheck,
   CheckCircle,
   Clock,
   XCircle,
+  ExternalLink,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -41,7 +42,13 @@ const formatNumber = (num: number) => {
 };
 
 const UserProfileDialog: React.FC<UserProfileDialogProps> = ({ userId, open, onOpenChange }) => {
+  const navigate = useNavigate();
   const { profile, channels, tasks, forumThreads, userRole, isLoading } = useUserProfileDetails(open ? userId : null);
+
+  const handleNavigate = (path: string) => {
+    onOpenChange(false);
+    navigate(path);
+  };
 
   const getKycBadge = () => {
     if (!profile) return null;
@@ -58,9 +65,7 @@ const UserProfileDialog: React.FC<UserProfileDialogProps> = ({ userId, open, onO
   };
 
   const completedTasks = tasks?.filter(t => t.status === 'completed') || [];
-  const pendingTasks = tasks?.filter(t => t.status === 'todo' || t.status === 'in_progress') || [];
   const totalSubs = channels?.reduce((sum, c) => sum + (c.subscriber_count || 0), 0) || 0;
-  const totalViews = channels?.reduce((sum, c) => sum + (Number(c.view_count) || 0), 0) || 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -131,7 +136,7 @@ const UserProfileDialog: React.FC<UserProfileDialogProps> = ({ userId, open, onO
 
             {/* Stats Summary */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Card className="bg-secondary/50">
+              <Card className="bg-secondary/50 cursor-pointer hover:bg-secondary/80 transition-colors" onClick={() => handleNavigate('/dashboard/channels')}>
                 <CardContent className="p-3 text-center">
                   <p className="text-2xl font-bold text-primary">{channels?.length || 0}</p>
                   <p className="text-xs text-muted-foreground">Channels</p>
@@ -143,13 +148,13 @@ const UserProfileDialog: React.FC<UserProfileDialogProps> = ({ userId, open, onO
                   <p className="text-xs text-muted-foreground">Subscribers</p>
                 </CardContent>
               </Card>
-              <Card className="bg-secondary/50">
+              <Card className="bg-secondary/50 cursor-pointer hover:bg-secondary/80 transition-colors" onClick={() => handleNavigate('/dashboard/tasks')}>
                 <CardContent className="p-3 text-center">
                   <p className="text-2xl font-bold">{completedTasks.length}</p>
                   <p className="text-xs text-muted-foreground">Tasks Done</p>
                 </CardContent>
               </Card>
-              <Card className="bg-secondary/50">
+              <Card className="bg-secondary/50 cursor-pointer hover:bg-secondary/80 transition-colors" onClick={() => handleNavigate('/dashboard/forum')}>
                 <CardContent className="p-3 text-center">
                   <p className="text-2xl font-bold">{forumThreads?.length || 0}</p>
                   <p className="text-xs text-muted-foreground">Threads</p>
@@ -176,10 +181,16 @@ const UserProfileDialog: React.FC<UserProfileDialogProps> = ({ userId, open, onO
 
               <TabsContent value="channels" className="mt-4 space-y-3">
                 {channels && channels.length > 0 ? channels.map((ch) => (
-                  <div key={ch.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
+                  <a
+                    key={ch.id}
+                    href={ch.channel_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary/80 transition-colors cursor-pointer group"
+                  >
                     <Youtube className="w-5 h-5 text-destructive flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{ch.channel_name}</p>
+                      <p className="font-medium truncate group-hover:text-primary transition-colors">{ch.channel_name}</p>
                       <p className="text-xs text-muted-foreground">by {ch.creator_name}</p>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
@@ -191,8 +202,9 @@ const UserProfileDialog: React.FC<UserProfileDialogProps> = ({ userId, open, onO
                         <Eye className="w-3.5 h-3.5" />
                         {formatNumber(Number(ch.view_count) || 0)}
                       </span>
+                      <ExternalLink className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
-                  </div>
+                  </a>
                 )) : (
                   <p className="text-center text-muted-foreground py-6">No channels added yet.</p>
                 )}
@@ -200,7 +212,11 @@ const UserProfileDialog: React.FC<UserProfileDialogProps> = ({ userId, open, onO
 
               <TabsContent value="tasks" className="mt-4 space-y-3">
                 {tasks && tasks.length > 0 ? tasks.slice(0, 10).map((task) => (
-                  <div key={task.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+                  <div
+                    key={task.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 hover:bg-secondary/80 transition-colors cursor-pointer"
+                    onClick={() => handleNavigate('/dashboard/tasks')}
+                  >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                         task.status === 'completed' ? 'bg-green-500' :
@@ -224,7 +240,11 @@ const UserProfileDialog: React.FC<UserProfileDialogProps> = ({ userId, open, onO
 
               <TabsContent value="threads" className="mt-4 space-y-3">
                 {forumThreads && forumThreads.length > 0 ? forumThreads.map((thread) => (
-                  <div key={thread.id} className="p-3 rounded-lg bg-secondary/50">
+                  <div
+                    key={thread.id}
+                    className="p-3 rounded-lg bg-secondary/50 hover:bg-secondary/80 transition-colors cursor-pointer"
+                    onClick={() => handleNavigate('/dashboard/forum')}
+                  >
                     <p className="font-medium">{thread.title}</p>
                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                       <span>{format(new Date(thread.created_at), 'MMM d, yyyy')}</span>

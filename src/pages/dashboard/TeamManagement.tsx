@@ -53,6 +53,7 @@ import {
   Youtube, FileText, Video, Image, Mic, BarChart3, Settings
 } from 'lucide-react';
 import { format } from 'date-fns';
+import UserProfileDialog from '@/components/UserProfileDialog';
 
 const ROLE_OPTIONS = [
   { value: 'script_writer', label: 'Script Writer', icon: FileText, color: 'text-blue-500' },
@@ -89,6 +90,7 @@ const TeamManagement: React.FC = () => {
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [selectedUsersToAdd, setSelectedUsersToAdd] = useState<{ userId: string; role: string }[]>([]);
   const [addMembersDialogOpen, setAddMembersDialogOpen] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const isAdmin = role === 'admin';
 
@@ -330,13 +332,16 @@ const TeamManagement: React.FC = () => {
                       return (
                         <div key={member.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
                           <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
+                            <Avatar className="h-6 w-6 cursor-pointer" onClick={() => setSelectedUserId(member.user_id)}>
                               <AvatarImage src={profile?.avatar_url || ''} />
                               <AvatarFallback className="text-xs">
                                 {profile?.full_name?.charAt(0) || '?'}
                               </AvatarFallback>
                             </Avatar>
-                            <span className="text-sm">{profile?.full_name || 'Unknown'}</span>
+                            <span
+                              className="text-sm cursor-pointer hover:text-primary transition-colors"
+                              onClick={() => setSelectedUserId(member.user_id)}
+                            >{profile?.full_name || 'Unknown'}</span>
                           </div>
                           {roleConfig && (
                             <Badge variant="outline" className="flex items-center gap-1">
@@ -352,9 +357,14 @@ const TeamManagement: React.FC = () => {
               </Card>
             );
           })}
-        </div>
       </div>
-    );
+      <UserProfileDialog
+        userId={selectedUserId}
+        open={!!selectedUserId}
+        onOpenChange={(open) => !open && setSelectedUserId(null)}
+      />
+    </div>
+  );
   }
 
   return (
@@ -785,14 +795,17 @@ const TeamManagement: React.FC = () => {
                               className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
                             >
                               <div className="flex items-center gap-3">
-                                <Avatar className="h-10 w-10">
+                                <Avatar className="h-10 w-10 cursor-pointer" onClick={() => setSelectedUserId(member.user_id)}>
                                   <AvatarImage src={profile?.avatar_url || ''} />
                                   <AvatarFallback className="text-sm bg-primary/10 text-primary">
                                     {profile?.full_name?.charAt(0) || '?'}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                  <p className="text-sm font-medium">{profile?.full_name || 'Unknown'}</p>
+                                  <p
+                                    className="text-sm font-medium cursor-pointer hover:text-primary transition-colors"
+                                    onClick={() => setSelectedUserId(member.user_id)}
+                                  >{profile?.full_name || 'Unknown'}</p>
                                   <p className="text-xs text-muted-foreground">{profile?.email}</p>
                                 </div>
                               </div>
@@ -852,6 +865,11 @@ const TeamManagement: React.FC = () => {
           })}
         </div>
       )}
+      <UserProfileDialog
+        userId={selectedUserId}
+        open={!!selectedUserId}
+        onOpenChange={(open) => !open && setSelectedUserId(null)}
+      />
     </div>
   );
 };
