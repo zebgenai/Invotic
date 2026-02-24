@@ -29,6 +29,7 @@ interface ChannelCardProps {
   onDelete: () => void;
   onRefresh: () => void;
   isRefreshing: boolean;
+  onCreatorClick?: () => void;
 }
 
 const ChannelCard: React.FC<ChannelCardProps> = ({
@@ -39,6 +40,7 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
   onDelete,
   onRefresh,
   isRefreshing,
+  onCreatorClick,
 }) => {
   const { data: liveData, isLoading: isLoadingLive } = useYouTubeAnalytics(channel.channel_link, 0);
   const [showVideos, setShowVideos] = useState(false);
@@ -84,7 +86,10 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
                   </Badge>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground">by {channel.creator_name}</p>
+              <p
+                className={`text-sm text-muted-foreground ${onCreatorClick ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
+                onClick={onCreatorClick}
+              >by {channel.creator_name}</p>
             </div>
           </div>
           {canEdit && (

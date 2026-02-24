@@ -28,6 +28,7 @@ import { Youtube, Plus, Search, Loader2 } from 'lucide-react';
 import { YouTubeChannel } from '@/types/database';
 import { supabase } from '@/integrations/supabase/client';
 import ChannelCard from '@/components/dashboard/ChannelCard';
+import UserProfileDialog from '@/components/UserProfileDialog';
 
 const ChannelStore: React.FC = () => {
   const { user, role } = useAuth();
@@ -43,6 +44,7 @@ const ChannelStore: React.FC = () => {
   const [isFetchingData, setIsFetchingData] = useState(false);
   const [refreshingChannelId, setRefreshingChannelId] = useState<string | null>(null);
   const [channelToDelete, setChannelToDelete] = useState<YouTubeChannel | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     channel_name: '',
     channel_link: '',
@@ -380,6 +382,7 @@ const ChannelStore: React.FC = () => {
               onDelete={() => setChannelToDelete(channel)}
               onRefresh={() => handleRefreshChannelData(channel)}
               isRefreshing={refreshingChannelId === channel.id}
+              onCreatorClick={() => setSelectedUserId(channel.user_id)}
             />
           ))}
         </div>
@@ -456,6 +459,11 @@ const ChannelStore: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <UserProfileDialog
+        userId={selectedUserId}
+        open={!!selectedUserId}
+        onOpenChange={(open) => !open && setSelectedUserId(null)}
+      />
     </div>
   );
 };
