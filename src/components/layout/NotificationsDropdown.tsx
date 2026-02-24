@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAnnouncements } from '@/hooks/useAnnouncements';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -7,8 +7,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Bell, Megaphone, CheckCircle2, AlertCircle, Info } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Bell, Megaphone, CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
+import { formatDistanceToNow, differenceInHours } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface Notification {
@@ -20,20 +20,56 @@ interface Notification {
   read: boolean;
 }
 
+const DISMISSED_KEY = 'dismissed_notifications';
+
+const getDismissedIds = (): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(DISMISSED_KEY) || '[]');
+  } catch {
+    return [];
+  }
+};
+
+const dismissNotification = (id: string) => {
+  const dismissed = getDismissedIds();
+  if (!dismissed.includes(id)) {
+    dismissed.push(id);
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(dismissed));
+  }
+};
+
 export const NotificationsDropdown: React.FC = () => {
   const { data: announcements, isLoading } = useAnnouncements();
-  
-  // Convert announcements to notifications format
-  const notifications: Notification[] = (announcements || []).slice(0, 5).map(a => ({
-    id: a.id,
-    type: 'announcement' as const,
-    title: a.title,
-    message: a.content.substring(0, 100) + (a.content.length > 100 ? '...' : ''),
-    createdAt: new Date(a.created_at),
-    read: false,
-  }));
+  const [dismissedIds, setDismissedIds] = useState<string[]>(getDismissedIds());
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  // Convert announcements to notifications, filter out 48h+ old and dismissed
+  const notifications: Notification[] = (announcements || [])
+    .filter((a) => {
+      const hoursOld = differenceInHours(new Date(), new Date(a.created_at));
+      return hoursOld < 48 && !dismissedIds.includes(a.id);
+    })
+    .slice(0, 10)
+    .map((a) => ({
+      id: a.id,
+      type: 'announcement' as const,
+      title: a.title,
+      message: a.content.substring(0, 100) + (a.content.length > 100 ? '...' : ''),
+      createdAt: new Date(a.created_at),
+      read: false,
+    }));
+
+  const unreadCount = notifications.length;
+
+  const handleDismiss = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    dismissNotification(id);
+    setDismissedIds([...getDismissedIds()]);
+  };
+
+  const handleClearAll = () => {
+    notifications.forEach((n) => dismissNotification(n.id));
+    setDismissedIds([...getDismissedIds()]);
+  };
 
   const getIcon = (type: Notification['type']) => {
     switch (type) {
@@ -65,9 +101,14 @@ export const NotificationsDropdown: React.FC = () => {
           <div className="flex items-center justify-between">
             <h4 className="font-semibold">Notifications</h4>
             {unreadCount > 0 && (
-              <span className="text-xs text-muted-foreground">
-                {unreadCount} new
-              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-auto py-1 px-2 text-muted-foreground hover:text-foreground"
+                onClick={handleClearAll}
+              >
+                Clear all
+              </Button>
             )}
           </div>
         </div>
@@ -81,7 +122,7 @@ export const NotificationsDropdown: React.FC = () => {
             <div className="p-8 text-center">
               <Bell className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">
-                No notifications yet
+                No notifications
               </p>
             </div>
           ) : (
@@ -89,16 +130,13 @@ export const NotificationsDropdown: React.FC = () => {
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={cn(
-                    "p-4 hover:bg-secondary/50 transition-colors cursor-pointer",
-                    !notification.read && "bg-primary/5"
-                  )}
+                  className="p-4 hover:bg-secondary/50 transition-colors group relative"
                 >
                   <div className="flex gap-3">
                     <div className="mt-0.5">
                       {getIcon(notification.type)}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 pr-6">
                       <p className="font-medium text-sm truncate">
                         {notification.title}
                       </p>
@@ -109,20 +147,19 @@ export const NotificationsDropdown: React.FC = () => {
                         {formatDistanceToNow(notification.createdAt, { addSuffix: true })}
                       </p>
                     </div>
+                    <button
+                      onClick={(e) => handleDismiss(e, notification.id)}
+                      className="absolute top-3 right-3 p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                      title="Dismiss"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
           )}
         </ScrollArea>
-        
-        {notifications.length > 0 && (
-          <div className="p-2 border-t border-border">
-            <Button variant="ghost" className="w-full text-sm" size="sm">
-              View all notifications
-            </Button>
-          </div>
-        )}
       </PopoverContent>
     </Popover>
   );
