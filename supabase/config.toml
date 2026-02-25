@@ -2,6 +2,3 @@ project_id = "ottyqipngzpymnlxpjre"
 
 [functions.youtube-channel-data]
 verify_jwt = false
-
-[functions.discord]
-verify_jwt = false
