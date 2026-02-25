@@ -52,7 +52,7 @@ import {
   Users, Plus, Trash2, UserPlus, UserMinus, Edit, Search, 
   Youtube, FileText, Video, Image, Mic, BarChart3, Settings
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { safeFormatDate } from '@/lib/utils';
 import UserProfileDialog from '@/components/UserProfileDialog';
 
 const ROLE_OPTIONS = [
@@ -534,7 +534,7 @@ const TeamManagement: React.FC = () => {
                       {team.name}
                     </CardTitle>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Created {format(new Date(team.created_at), 'MMM d, yyyy')}
+                      Created {safeFormatDate(team.created_at, 'MMM d, yyyy')}
                     </p>
                     {channel && (
                       <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-destructive/10">

@@ -19,7 +19,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { safeFormatDate } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import {
   Popover,
@@ -363,7 +363,7 @@ const DiscordChat: React.FC = () => {
                             {message.author.username}
                           </span>
                           <span className="text-xs text-[#949BA4]">
-                            {format(new Date(message.timestamp), 'MM/dd/yyyy h:mm a')}
+                            {safeFormatDate(message.timestamp, 'MM/dd/yyyy h:mm a')}
                           </span>
                         </div>
                         <div className="text-[#DBDEE1]">

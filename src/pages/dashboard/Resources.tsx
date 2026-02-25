@@ -35,7 +35,7 @@ import {
   ExternalLink,
   Edit,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { safeFormatDate } from '@/lib/utils';
 
 const Resources: React.FC = () => {
   const { role } = useAuth();
@@ -429,7 +429,7 @@ const Resources: React.FC = () => {
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground mb-4">
-                  Added {format(new Date(resource.created_at), 'MMM d, yyyy')}
+                  Added {safeFormatDate(resource.created_at, 'MMM d, yyyy')}
                 </p>
                 <div className="flex items-center gap-2">
                   <Button

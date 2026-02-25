@@ -50,6 +50,7 @@ import {
   Legend,
 } from 'recharts';
 import { format, subDays, subWeeks, subMonths, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isValid } from 'date-fns';
+import { safeFormatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 
 const COLORS = ['hsl(262, 83%, 58%)', 'hsl(199, 89%, 48%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(0, 84%, 60%)', 'hsl(280, 65%, 60%)'];
@@ -556,7 +557,7 @@ const Analytics: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {format(new Date(video.published_at), 'MMM d, yyyy')}
+                    {safeFormatDate(video.published_at, 'MMM d, yyyy')}
                   </p>
                 </a>
               ))}

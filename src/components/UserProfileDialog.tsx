@@ -27,7 +27,7 @@ import {
   XCircle,
   ExternalLink,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { safeFormatDate } from '@/lib/utils';
 
 interface UserProfileDialogProps {
   userId: string | null;
@@ -130,7 +130,7 @@ const UserProfileDialog: React.FC<UserProfileDialogProps> = ({ userId, open, onO
               )}
               <span className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4" />
-                Joined {format(new Date(profile.created_at), 'MMM d, yyyy')}
+                Joined {safeFormatDate(profile.created_at, 'MMM d, yyyy')}
               </span>
             </div>
 
@@ -225,7 +225,7 @@ const UserProfileDialog: React.FC<UserProfileDialogProps> = ({ userId, open, onO
                       <div className="min-w-0">
                         <p className="font-medium truncate">{task.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {task.due_date ? `Due ${format(new Date(task.due_date), 'MMM d, yyyy')}` : 'No due date'}
+                          {task.due_date ? `Due ${safeFormatDate(task.due_date, 'MMM d, yyyy')}` : 'No due date'}
                         </p>
                       </div>
                     </div>
@@ -247,7 +247,7 @@ const UserProfileDialog: React.FC<UserProfileDialogProps> = ({ userId, open, onO
                   >
                     <p className="font-medium">{thread.title}</p>
                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                      <span>{format(new Date(thread.created_at), 'MMM d, yyyy')}</span>
+                      <span>{safeFormatDate(thread.created_at, 'MMM d, yyyy')}</span>
                       <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{thread.view_count}</span>
                     </div>
                   </div>

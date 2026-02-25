@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Megaphone, Plus, Pin, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { safeFormatDate } from '@/lib/utils';
 
 const Announcements: React.FC = () => {
   const { role } = useAuth();
@@ -193,7 +193,7 @@ const Announcements: React.FC = () => {
                       {announcement.content}
                     </p>
                     <p className="text-xs text-muted-foreground mt-4">
-                      Published {format(new Date(announcement.created_at), 'MMMM d, yyyy • h:mm a')}
+                      Published {safeFormatDate(announcement.created_at, 'MMMM d, yyyy • h:mm a')}
                     </p>
                   </CardContent>
                 </Card>
@@ -229,7 +229,7 @@ const Announcements: React.FC = () => {
                       {announcement.content}
                     </p>
                     <p className="text-xs text-muted-foreground mt-4">
-                      Published {format(new Date(announcement.created_at), 'MMMM d, yyyy • h:mm a')}
+                      Published {safeFormatDate(announcement.created_at, 'MMMM d, yyyy • h:mm a')}
                     </p>
                   </CardContent>
                 </Card>

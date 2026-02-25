@@ -44,7 +44,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Search, Shield, Users, CheckCircle, XCircle, Clock, Eye, Download, FileText, Image as ImageIcon, Trash2, Mail, Phone, UserX, CheckSquare, UserPlus } from 'lucide-react';
-import { format } from 'date-fns';
+import { safeFormatDate } from '@/lib/utils';
 import { AppRole, KycStatus, Profile } from '@/types/database';
 import { useSignupEnabled, useUpdateAppSetting } from '@/hooks/useAppSettings';
 
@@ -895,7 +895,7 @@ const UserManagement: React.FC = () => {
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {format(new Date(profile.created_at), 'MMM d, yyyy')}
+                        {safeFormatDate(profile.created_at, 'MMM d, yyyy')}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
