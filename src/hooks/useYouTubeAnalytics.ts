@@ -63,10 +63,21 @@ export const useYouTubeAnalytics = (
       );
 
       if (fnError) {
-        // Extract message from FunctionsHttpError or fallback
-        const msg = typeof fnError === 'object' && fnError !== null && 'message' in fnError
-          ? (fnError as Error).message
-          : 'Failed to fetch channel data';
+        // Try to parse the error body for a user-friendly message
+        let msg = 'Failed to fetch channel data';
+        try {
+          if (fnError instanceof Response || (typeof fnError === 'object' && fnError !== null && 'context' in fnError)) {
+            // FunctionsHttpError contains the response – try to read the JSON body
+            const errorBody = typeof (fnError as any).context?.body === 'string'
+              ? JSON.parse((fnError as any).context.body)
+              : null;
+            if (errorBody?.error) msg = errorBody.error;
+          } else if ('message' in (fnError as any)) {
+            msg = (fnError as Error).message;
+          }
+        } catch {
+          // ignore parse errors
+        }
         throw new Error(msg);
       }
 
