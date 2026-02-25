@@ -58,7 +58,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onMo
     { icon: UsersRound, label: 'Teams', path: '/dashboard/teams' },
     { icon: Youtube, label: 'All Channels', path: '/dashboard/channels' },
     { icon: CheckSquare, label: 'All Tasks', path: '/dashboard/tasks' },
-    { icon: MessageCircle, label: 'Discord', path: '/dashboard/discord' },
     { icon: Megaphone, label: 'Announcements', path: '/dashboard/announcements' },
     { icon: BarChart3, label: 'Analytics', path: '/dashboard/analytics' },
   ];
@@ -67,7 +66,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onMo
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Users, label: 'Team', path: '/dashboard/team' },
     { icon: CheckSquare, label: 'Tasks', path: '/dashboard/tasks' },
-    { icon: MessageCircle, label: 'Discord', path: '/dashboard/discord' },
     { icon: Youtube, label: 'Channels', path: '/dashboard/channels' },
   ];
 
@@ -81,7 +79,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onMo
     { icon: FileCheck, label: 'KYC Status', path: '/dashboard/kyc-submit' },
     { icon: Youtube, label: 'My Channel', path: '/dashboard/channel' },
     { icon: CheckSquare, label: 'Tasks', path: '/dashboard/tasks' },
-    { icon: MessageCircle, label: 'Discord', path: '/dashboard/discord' },
     { icon: BarChart3, label: 'Stats', path: '/dashboard/stats' },
   ];
 
