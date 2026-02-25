@@ -21,7 +21,6 @@ import Resources from "./pages/dashboard/Resources";
 import Analytics from "./pages/dashboard/Analytics";
 import KYCSubmission from "./pages/dashboard/KYCSubmission";
 import TeamManagement from "./pages/dashboard/TeamManagement";
-import DiscordChat from "./pages/dashboard/DiscordChat";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,7 +62,6 @@ const App = () => (
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="stats" element={<Analytics />} />
                 <Route path="teams" element={<TeamManagement />} />
-                <Route path="discord" element={<DiscordChat />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
