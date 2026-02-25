@@ -19,7 +19,7 @@ import {
   Clock,
   PlayCircle,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { safeFormatDate } from '@/lib/utils';
 
 interface ChannelCardProps {
   channel: YouTubeChannel;
@@ -234,7 +234,7 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
 
         {/* Footer */}
         <p className="text-xs text-muted-foreground">
-          Added {format(new Date(channel.created_at), 'MMM d, yyyy')}
+          Added {safeFormatDate(channel.created_at, 'MMM d, yyyy')}
         </p>
       </CardContent>
     </Card>
