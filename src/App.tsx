@@ -25,8 +25,8 @@ import TeamManagement from "./pages/dashboard/TeamManagement";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 5,
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      retry: 1,
+      retryDelay: 1000,
       staleTime: 1000 * 60 * 5, // 5 minutes
       refetchOnWindowFocus: false,
     },
