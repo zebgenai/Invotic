@@ -6,7 +6,7 @@ import {
   Users,
   Youtube,
   CheckSquare,
-  
+  MessageCircle,
   Megaphone,
   BarChart3,
   Trophy,

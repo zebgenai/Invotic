@@ -1,36 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { YouTubeChannel } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const useChannels = () => {
   const { user, role } = useAuth();
-  const queryClient = useQueryClient();
-
-  // Realtime subscription for live updates
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel('youtube_channels_realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'youtube_channels',
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['channels'] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, queryClient]);
 
   return useQuery({
     queryKey: ['channels'],
@@ -40,6 +14,7 @@ export const useChannels = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
+      // Users can only see their own channels
       if (role === 'user') {
         query = query.eq('user_id', user?.id);
       }
