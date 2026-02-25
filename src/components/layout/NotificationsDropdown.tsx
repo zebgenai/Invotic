@@ -8,7 +8,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Bell, Megaphone, CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
-import { formatDistanceToNow, differenceInHours } from 'date-fns';
+import { formatDistanceToNow, differenceInHours, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface Notification {
@@ -45,7 +45,9 @@ export const NotificationsDropdown: React.FC = () => {
   // Convert announcements to notifications, filter out 48h+ old and dismissed
   const notifications: Notification[] = (announcements || [])
     .filter((a) => {
-      const hoursOld = differenceInHours(new Date(), new Date(a.created_at));
+      const date = new Date(a.created_at);
+      if (!isValid(date)) return false;
+      const hoursOld = differenceInHours(new Date(), date);
       return hoursOld < 48 && !dismissedIds.includes(a.id);
     })
     .slice(0, 10)

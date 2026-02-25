@@ -17,7 +17,7 @@ import {
   ThumbsUp,
   MessageSquare,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { safeFormatDate } from '@/lib/utils';
 
 interface ChannelAnalyticsCardProps {
   channelLink: string;
@@ -187,7 +187,7 @@ const ChannelAnalyticsCard: React.FC<ChannelAnalyticsCardProps> = ({ channelLink
         {/* Last Updated */}
         {lastFetched && (
           <p className="text-xs text-muted-foreground mt-3 text-right">
-            Updated {format(lastFetched, 'MMM d, h:mm a')}
+            Updated {safeFormatDate(lastFetched, 'MMM d, h:mm a')}
           </p>
         )}
       </CardContent>

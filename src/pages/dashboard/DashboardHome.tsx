@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
+import { safeFormatDate } from '@/lib/utils';
 
 const DashboardHome: React.FC = () => {
   const { profile, role } = useAuth();
@@ -160,7 +160,7 @@ const DashboardHome: React.FC = () => {
                       <p className="font-medium">{task.title}</p>
                       <p className="text-sm text-muted-foreground">
                         {task.due_date
-                          ? `Due ${format(new Date(task.due_date), 'MMM d, yyyy')}`
+                          ? `Due ${safeFormatDate(task.due_date, 'MMM d, yyyy', 'Unknown')}`
                           : 'No due date'}
                       </p>
                     </div>
@@ -215,7 +215,7 @@ const DashboardHome: React.FC = () => {
                     {announcement.content}
                   </p>
                   <p className="text-xs text-muted-foreground mt-2">
-                    {format(new Date(announcement.created_at), 'MMM d, yyyy')}
+                    {safeFormatDate(announcement.created_at, 'MMM d, yyyy')}
                   </p>
                 </div>
               ))}

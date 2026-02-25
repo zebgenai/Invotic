@@ -49,7 +49,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { format, subDays, subWeeks, subMonths, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval } from 'date-fns';
+import { format, subDays, subWeeks, subMonths, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isValid } from 'date-fns';
 import { toast } from 'sonner';
 
 const COLORS = ['hsl(262, 83%, 58%)', 'hsl(199, 89%, 48%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(0, 84%, 60%)', 'hsl(280, 65%, 60%)'];
@@ -336,7 +336,7 @@ const Analytics: React.FC = () => {
               </div>
               {lastFetched && (
                 <p className="text-xs text-muted-foreground">
-                  Updated {format(lastFetched, 'MMM d, h:mm a')}
+                  Updated {lastFetched && isValid(lastFetched) ? format(lastFetched, 'MMM d, h:mm a') : '—'}
                 </p>
               )}
             </a>
