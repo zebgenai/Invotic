@@ -63,11 +63,15 @@ export const useYouTubeAnalytics = (
       );
 
       if (fnError) {
-        throw new Error(fnError.message || 'Failed to fetch channel data');
+        // Extract message from FunctionsHttpError or fallback
+        const msg = typeof fnError === 'object' && fnError !== null && 'message' in fnError
+          ? (fnError as Error).message
+          : 'Failed to fetch channel data';
+        throw new Error(msg);
       }
 
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch channel data');
+      if (!response || !response.success) {
+        throw new Error(response?.error || 'Failed to fetch channel data');
       }
 
       setData(response.data);
@@ -75,7 +79,10 @@ export const useYouTubeAnalytics = (
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       setError(errorMessage);
-      console.error('YouTube Analytics Error:', err);
+      // Don't log expected 404s as errors to reduce noise
+      if (!errorMessage.includes('Could not find')) {
+        console.error('YouTube Analytics Error:', err);
+      }
     } finally {
       setIsLoading(false);
     }
