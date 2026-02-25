@@ -1,22 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useYouTubeAnalytics, formatCount, formatDuration } from '@/hooks/useYouTubeAnalytics';
+import { formatCount } from '@/hooks/useYouTubeAnalytics';
 import { YouTubeChannel } from '@/types/database';
 import {
   Youtube,
   ExternalLink,
   Trash2,
   Users,
-  Video,
   Pencil,
   Eye,
   RefreshCw,
-  TrendingUp,
-  ThumbsUp,
-  Clock,
   PlayCircle,
 } from 'lucide-react';
 import { safeFormatDate } from '@/lib/utils';
@@ -42,20 +38,17 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
   isRefreshing,
   onCreatorClick,
 }) => {
-  const { data: liveData, isLoading: isLoadingLive } = useYouTubeAnalytics(channel.channel_link, 0);
-  const [showVideos, setShowVideos] = useState(false);
-
-  // Use live data if available, fallback to stored data
-  const displayData = liveData || {
+  const displayData = {
     channel_name: channel.channel_name,
-    thumbnail_url: null,
+    thumbnail_url: null as string | null,
     subscriber_count: channel.subscriber_count || 0,
     video_count: channel.video_count || 0,
     view_count: channel.view_count || 0,
-    country: null,
-    custom_url: null,
-    latest_videos: [],
+    country: null as string | null,
+    custom_url: null as string | null,
+    latest_videos: [] as any[],
   };
+  const isLoadingLive = false;
 
   return (
     <Card className="glass-card-hover group overflow-hidden">
@@ -143,60 +136,6 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
           </div>
         </div>
 
-        {/* Latest Videos Toggle */}
-        {liveData?.latest_videos && liveData.latest_videos.length > 0 && (
-          <div className="space-y-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-between text-muted-foreground hover:text-foreground"
-              onClick={() => setShowVideos(!showVideos)}
-            >
-              <span className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                Latest Videos ({liveData.latest_videos.length})
-              </span>
-              <span className="text-xs">{showVideos ? 'Hide' : 'Show'}</span>
-            </Button>
-            
-            {showVideos && (
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {liveData.latest_videos.slice(0, 3).map((video) => (
-                  <a
-                    key={video.id}
-                    href={`https://youtube.com/watch?v=${video.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex gap-2 p-2 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
-                  >
-                    <img
-                      src={video.thumbnail}
-                      alt={video.title}
-                      className="w-16 h-10 object-cover rounded shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium line-clamp-1">{video.title}</p>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-0.5">
-                          <Eye className="w-3 h-3" />
-                          {formatCount(video.view_count)}
-                        </span>
-                        <span className="flex items-center gap-0.5">
-                          <ThumbsUp className="w-3 h-3" />
-                          {formatCount(video.like_count)}
-                        </span>
-                        <span className="flex items-center gap-0.5">
-                          <Clock className="w-3 h-3" />
-                          {formatDuration(video.duration)}
-                        </span>
-                      </div>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Description */}
         {channel.description && (
