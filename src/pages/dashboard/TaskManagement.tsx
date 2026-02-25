@@ -42,7 +42,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { format } from 'date-fns';
+import { safeFormatDate } from '@/lib/utils';
 import { TaskPriority, TaskStatus } from '@/types/database';
 
 const TaskManagement: React.FC = () => {
@@ -414,7 +414,7 @@ const TaskManagement: React.FC = () => {
                         {getPriorityBadge(task.priority)}
                         {task.due_date && (
                           <span className="text-xs text-muted-foreground">
-                            Due {format(new Date(task.due_date), 'MMM d, yyyy')}
+                            Due {safeFormatDate(task.due_date, 'MMM d, yyyy')}
                           </span>
                         )}
                         {task.link && (

@@ -33,7 +33,7 @@ import {
   Trash2,
   Send,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { safeFormatDate } from '@/lib/utils';
 
 const Forum: React.FC = () => {
   const { user, profile, role } = useAuth();
@@ -189,7 +189,7 @@ const Forum: React.FC = () => {
               <div>
                 <p className="font-medium cursor-pointer hover:text-primary transition-colors" onClick={() => setSelectedUserId(currentThread.author_id)}>{author?.full_name || 'Unknown'}</p>
                 <p className="text-sm text-muted-foreground">
-                  {format(new Date(currentThread.created_at), 'MMMM d, yyyy • h:mm a')}
+                  {safeFormatDate(currentThread.created_at, 'MMMM d, yyyy • h:mm a')}
                 </p>
               </div>
             </div>
@@ -226,7 +226,7 @@ const Forum: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <p className="font-medium cursor-pointer hover:text-primary transition-colors" onClick={() => setSelectedUserId(reply.author_id)}>{replyAuthor?.full_name || 'Unknown'}</p>
                         <span className="text-xs text-muted-foreground">
-                          {format(new Date(reply.created_at), 'MMM d, yyyy • h:mm a')}
+                          {safeFormatDate(reply.created_at, 'MMM d, yyyy • h:mm a')}
                         </span>
                       </div>
                       <p className="mt-2 whitespace-pre-wrap">{reply.content}</p>
@@ -409,7 +409,7 @@ const Forum: React.FC = () => {
                       <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
                         <span className="cursor-pointer hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); setSelectedUserId(thread.author_id); }}>{author?.full_name || 'Unknown'}</span>
                         <span>•</span>
-                        <span>{format(new Date(thread.created_at), 'MMM d, yyyy')}</span>
+                        <span>{safeFormatDate(thread.created_at, 'MMM d, yyyy')}</span>
                         <span>•</span>
                         <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{thread.view_count}</span>
                       </div>
