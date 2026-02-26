@@ -2,6 +2,9 @@ import React, { useState, useMemo } from 'react';
 import UserProfileDialog from '@/components/UserProfileDialog';
 import { useProfiles, useUpdateKycStatus, useUpdateUserRole, useUserRoles, useDeleteKyc, useDeleteUserProfile } from '@/hooks/useProfiles';
 import { supabase } from '@/integrations/supabase/client';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -43,7 +46,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Shield, Users, CheckCircle, XCircle, Clock, Eye, Download, FileText, Image as ImageIcon, Trash2, Mail, Phone, UserX, CheckSquare, UserPlus } from 'lucide-react';
+import { Search, Shield, Users, CheckCircle, XCircle, Clock, Eye, Download, FileText, Image as ImageIcon, Trash2, Mail, Phone, UserX, CheckSquare, UserPlus, FileDown, Loader2 } from 'lucide-react';
 import { safeFormatDate } from '@/lib/utils';
 import { AppRole, KycStatus, Profile } from '@/types/database';
 import { useSignupEnabled, useUpdateAppSetting } from '@/hooks/useAppSettings';
@@ -63,6 +66,7 @@ const UserManagement: React.FC = () => {
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   
   const { signupEnabled, isLoading: settingsLoading } = useSignupEnabled();
   const updateSetting = useUpdateAppSetting();
@@ -429,6 +433,78 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const handleExportAll = async () => {
+    if (!profiles || profiles.length === 0) return;
+    setExporting(true);
+    
+    try {
+      const zip = new JSZip();
+      const imgFolder = zip.folder('kyc-documents');
+
+      // Build Excel data
+      const rows = profiles.map((p) => ({
+        'Full Name': p.full_name,
+        'Email': p.email,
+        'Handle': p.handle || '',
+        'KYC Status': p.kyc_status,
+        'Role': getUserRole(p.user_id),
+        'Gmail': p.kyc_gmail || '',
+        'WhatsApp': p.kyc_whatsapp || '',
+        'Specialties': (p.specialties || []).join(', '),
+        'KYC Submitted At': p.kyc_submitted_at || '',
+        'KYC Reviewed At': p.kyc_reviewed_at || '',
+        'Active': p.is_active ? 'Yes' : 'No',
+        'Created At': p.created_at,
+        'Front Document': p.kyc_document_url ? `${p.full_name.replace(/\s+/g, '_')}_front.jpg` : '',
+        'Back Document': p.kyc_document_back_url ? `${p.full_name.replace(/\s+/g, '_')}_back.jpg` : '',
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'KYC Data');
+      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      zip.file('kyc_data.xlsx', excelBuffer);
+
+      // Download images
+      const imagePromises: Promise<void>[] = [];
+
+      for (const p of profiles) {
+        if (p.kyc_document_url) {
+          const safeName = p.full_name.replace(/\s+/g, '_');
+          imagePromises.push(
+            getSignedUrl(p.kyc_document_url)
+              .then((url) => fetch(url))
+              .then((res) => res.blob())
+              .then((blob) => { imgFolder!.file(`${safeName}_front.jpg`, blob); })
+              .catch(() => { /* skip failed downloads */ })
+          );
+        }
+        if (p.kyc_document_back_url) {
+          const safeName = p.full_name.replace(/\s+/g, '_');
+          imagePromises.push(
+            getSignedUrl(p.kyc_document_back_url)
+              .then((url) => fetch(url))
+              .then((res) => res.blob())
+              .then((blob) => { imgFolder!.file(`${safeName}_back.jpg`, blob); })
+              .catch(() => { /* skip failed downloads */ })
+          );
+        }
+      }
+
+      await Promise.all(imagePromises);
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      saveAs(content, `KYC_Export_${new Date().toISOString().split('T')[0]}.zip`);
+
+      toast({ title: 'Export complete', description: 'KYC data and documents have been downloaded.' });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({ title: 'Export failed', description: 'Failed to export data. Please try again.', variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -439,6 +515,17 @@ const UserManagement: React.FC = () => {
             Manage users, roles, and KYC verification.
           </p>
         </div>
+        
+        <div className="flex items-center gap-3">
+          {/* Export Button */}
+          <Button 
+            variant="outline" 
+            onClick={handleExportAll}
+            disabled={exporting || !profiles?.length}
+          >
+            {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileDown className="w-4 h-4 mr-2" />}
+            {exporting ? 'Exporting...' : 'Export All KYC'}
+          </Button>
         
         {/* Signup Toggle */}
         <Card className="glass-card">
@@ -478,6 +565,7 @@ const UserManagement: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
 
       {/* Stats */}
