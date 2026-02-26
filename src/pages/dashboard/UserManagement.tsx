@@ -465,33 +465,42 @@ const UserManagement: React.FC = () => {
       const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       zip.file('kyc_data.xlsx', excelBuffer);
 
-      // Download images
-      const imagePromises: Promise<void>[] = [];
-
+      // Collect all file paths that need signing
+      const filesToDownload: { path: string; zipName: string }[] = [];
       for (const p of profiles) {
+        const safeName = p.full_name.replace(/\s+/g, '_');
         if (p.kyc_document_url) {
-          const safeName = p.full_name.replace(/\s+/g, '_');
-          imagePromises.push(
-            getSignedUrl(p.kyc_document_url)
-              .then((url) => fetch(url))
-              .then((res) => res.blob())
-              .then((blob) => { imgFolder!.file(`${safeName}_front.jpg`, blob); })
-              .catch(() => { /* skip failed downloads */ })
-          );
+          filesToDownload.push({ path: p.kyc_document_url, zipName: `${safeName}_front.jpg` });
         }
         if (p.kyc_document_back_url) {
-          const safeName = p.full_name.replace(/\s+/g, '_');
-          imagePromises.push(
-            getSignedUrl(p.kyc_document_back_url)
-              .then((url) => fetch(url))
-              .then((res) => res.blob())
-              .then((blob) => { imgFolder!.file(`${safeName}_back.jpg`, blob); })
-              .catch(() => { /* skip failed downloads */ })
-          );
+          filesToDownload.push({ path: p.kyc_document_back_url, zipName: `${safeName}_back.jpg` });
         }
       }
 
-      await Promise.all(imagePromises);
+      if (filesToDownload.length > 0) {
+        // Batch sign all URLs at once (much faster than individual calls)
+        const { data: signedUrls, error: signError } = await supabase.storage
+          .from('kyc-documents')
+          .createSignedUrls(filesToDownload.map(f => f.path), 3600);
+
+        if (!signError && signedUrls) {
+          // Download all images concurrently in chunks of 10
+          const chunkSize = 10;
+          for (let i = 0; i < signedUrls.length; i += chunkSize) {
+            const chunk = signedUrls.slice(i, i + chunkSize);
+            await Promise.all(
+              chunk.map(async (signed, idx) => {
+                if (signed.error || !signed.signedUrl) return;
+                try {
+                  const res = await fetch(signed.signedUrl);
+                  const blob = await res.blob();
+                  imgFolder!.file(filesToDownload[i + idx].zipName, blob);
+                } catch { /* skip failed */ }
+              })
+            );
+          }
+        }
+      }
 
       const content = await zip.generateAsync({ type: 'blob' });
       saveAs(content, `KYC_Export_${new Date().toISOString().split('T')[0]}.zip`);
