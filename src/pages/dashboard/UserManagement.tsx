@@ -67,6 +67,7 @@ const UserManagement: React.FC = () => {
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
   
   const { signupEnabled, isLoading: settingsLoading } = useSignupEnabled();
   const updateSetting = useUpdateAppSetting();
@@ -478,24 +479,31 @@ const UserManagement: React.FC = () => {
       }
 
       if (filesToDownload.length > 0) {
-        // Batch sign all URLs at once (much faster than individual calls)
+        setExportProgress({ current: 0, total: filesToDownload.length });
+        
         const { data: signedUrls, error: signError } = await supabase.storage
           .from('kyc-documents')
           .createSignedUrls(filesToDownload.map(f => f.path), 3600);
 
         if (!signError && signedUrls) {
-          // Download all images concurrently in chunks of 10
+          let downloaded = 0;
           const chunkSize = 10;
           for (let i = 0; i < signedUrls.length; i += chunkSize) {
             const chunk = signedUrls.slice(i, i + chunkSize);
             await Promise.all(
               chunk.map(async (signed, idx) => {
-                if (signed.error || !signed.signedUrl) return;
+                if (signed.error || !signed.signedUrl) {
+                  downloaded++;
+                  setExportProgress(prev => ({ ...prev, current: downloaded }));
+                  return;
+                }
                 try {
                   const res = await fetch(signed.signedUrl);
                   const blob = await res.blob();
                   imgFolder!.file(filesToDownload[i + idx].zipName, blob);
                 } catch { /* skip failed */ }
+                downloaded++;
+                setExportProgress(prev => ({ ...prev, current: downloaded }));
               })
             );
           }
@@ -533,7 +541,11 @@ const UserManagement: React.FC = () => {
             disabled={exporting || !profiles?.length}
           >
             {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileDown className="w-4 h-4 mr-2" />}
-            {exporting ? 'Exporting...' : 'Export All KYC'}
+            {exporting && exportProgress.total > 0
+              ? `Downloading ${exportProgress.current}/${exportProgress.total} files...`
+              : exporting
+              ? 'Preparing...'
+              : 'Export All KYC'}
           </Button>
         
         {/* Signup Toggle */}
