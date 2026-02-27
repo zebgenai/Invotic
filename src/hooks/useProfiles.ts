@@ -163,6 +163,52 @@ export const useUpdateUserRole = () => {
   });
 };
 
+export const useDeleteAllKycDocuments = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (profiles: Profile[]) => {
+      const usersWithDocs = profiles.filter(
+        (p) => p.kyc_document_url || p.kyc_document_back_url
+      );
+
+      // Collect all file paths to delete from storage
+      const filesToDelete: string[] = [];
+      for (const profile of usersWithDocs) {
+        if (profile.kyc_document_url) filesToDelete.push(profile.kyc_document_url);
+        if (profile.kyc_document_back_url) filesToDelete.push(profile.kyc_document_back_url);
+      }
+
+      // Batch delete files from storage (max 100 per call)
+      for (let i = 0; i < filesToDelete.length; i += 100) {
+        const batch = filesToDelete.slice(i, i + 100);
+        const { error } = await supabase.storage
+          .from('kyc-documents')
+          .remove(batch);
+        if (error) console.error('Storage batch delete error:', error);
+      }
+
+      // Reset KYC document fields for all users with docs (keep kyc_status as-is)
+      const userIds = usersWithDocs.map((p) => p.user_id);
+      for (const userId of userIds) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            kyc_document_url: null,
+            kyc_document_back_url: null,
+          })
+          .eq('user_id', userId);
+        if (error) console.error('Profile update error:', error);
+      }
+
+      return { deletedFiles: filesToDelete.length, updatedProfiles: userIds.length };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+    },
+  });
+};
+
 export const useUserRoles = () => {
   const { role } = useAuth();
 

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import UserProfileDialog from '@/components/UserProfileDialog';
-import { useProfiles, useUpdateKycStatus, useUpdateUserRole, useUserRoles, useDeleteKyc, useDeleteUserProfile } from '@/hooks/useProfiles';
+import { useProfiles, useUpdateKycStatus, useUpdateUserRole, useUserRoles, useDeleteKyc, useDeleteUserProfile, useDeleteAllKycDocuments } from '@/hooks/useProfiles';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -54,6 +54,7 @@ const UserManagement: React.FC = () => {
   const updateKyc = useUpdateKycStatus();
   const updateRole = useUpdateUserRole();
   const deleteKyc = useDeleteKyc();
+  const deleteAllKycDocs = useDeleteAllKycDocuments();
   const deleteProfile = useDeleteUserProfile();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
@@ -439,7 +440,60 @@ const UserManagement: React.FC = () => {
             Manage users, roles, and KYC verification.
           </p>
         </div>
-        
+
+        <div className="flex items-center gap-3">
+          {/* Delete All KYC Documents */}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                disabled={deleteAllKycDocs.isPending || !profiles?.length}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete All KYC Docs
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete All KYC Documents</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete all KYC document files from storage and clear document URLs for every user. 
+                  <strong className="block mt-2">This will NOT affect:</strong>
+                  <ul className="list-disc list-inside mt-1 text-sm">
+                    <li>User accounts or login</li>
+                    <li>KYC approval status</li>
+                    <li>Any other user data</li>
+                  </ul>
+                  <span className="block mt-2 font-medium">This action cannot be undone.</span>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={async () => {
+                    if (!profiles) return;
+                    try {
+                      const result = await deleteAllKycDocs.mutateAsync(profiles);
+                      toast({
+                        title: 'KYC documents deleted',
+                        description: `Removed ${result.deletedFiles} file(s) from ${result.updatedProfiles} user(s).`,
+                      });
+                    } catch (error) {
+                      toast({
+                        title: 'Error',
+                        description: 'Failed to delete KYC documents.',
+                        variant: 'destructive',
+                      });
+                    }
+                  }}
+                >
+                  Delete All Documents
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         {/* Signup Toggle */}
         <Card className="glass-card">
           <CardContent className="py-3 px-4">
@@ -478,6 +532,7 @@ const UserManagement: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
 
       {/* Stats */}
