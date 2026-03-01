@@ -412,6 +412,12 @@ const TaskManagement: React.FC = () => {
                       )}
                       <div className="flex items-center gap-3 mt-2 flex-wrap">
                         {getPriorityBadge(task.priority)}
+                        {task.assigned_to && (
+                          <Badge variant="outline" className="text-xs">
+                            <Users className="w-3 h-3 mr-1" />
+                            {profiles?.find(p => p.user_id === task.assigned_to)?.full_name || 'Unknown'}
+                          </Badge>
+                        )}
                         {task.due_date && (
                           <span className="text-xs text-muted-foreground">
                             Due {safeFormatDate(task.due_date, 'MMM d, yyyy')}
@@ -422,11 +428,11 @@ const TaskManagement: React.FC = () => {
                             href={task.link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 underline transition-colors"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <ExternalLink className="w-3 h-3" />
-                            Open Link
+                            {task.link.length > 40 ? task.link.substring(0, 40) + '...' : task.link}
                           </a>
                         )}
                       </div>
