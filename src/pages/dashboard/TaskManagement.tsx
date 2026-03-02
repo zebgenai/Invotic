@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/useTasks';
+import UserProfileDialog from '@/components/UserProfileDialog';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,6 +56,7 @@ const TaskManagement: React.FC = () => {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -413,7 +415,14 @@ const TaskManagement: React.FC = () => {
                       <div className="flex items-center gap-3 mt-2 flex-wrap">
                         {getPriorityBadge(task.priority)}
                         {task.assigned_to && (
-                          <Badge variant="outline" className="text-xs">
+                          <Badge
+                            variant="outline"
+                            className="text-xs cursor-pointer hover:bg-primary/10 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedUserId(task.assigned_to);
+                            }}
+                          >
                             <Users className="w-3 h-3 mr-1" />
                             {profiles?.find(p => p.user_id === task.assigned_to)?.full_name || 'Unknown'}
                           </Badge>
@@ -478,6 +487,12 @@ const TaskManagement: React.FC = () => {
           ))}
         </div>
       )}
+
+      <UserProfileDialog
+        userId={selectedUserId}
+        open={!!selectedUserId}
+        onOpenChange={(open) => !open && setSelectedUserId(null)}
+      />
     </div>
   );
 };
