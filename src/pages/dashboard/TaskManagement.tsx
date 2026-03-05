@@ -470,15 +470,13 @@ const TaskManagement: React.FC = () => {
                           Start Task
                         </DropdownMenuItem>
                       )}
-                      {canCreateTasks && (
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => handleDelete(task.id)}
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      )}
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => handleDelete(task.id)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
