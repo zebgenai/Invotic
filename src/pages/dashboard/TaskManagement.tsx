@@ -57,6 +57,8 @@ const TaskManagement: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
