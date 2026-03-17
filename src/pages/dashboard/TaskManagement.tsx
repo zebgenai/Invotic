@@ -153,6 +153,66 @@ const TaskManagement: React.FC = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedTaskIds.size === 0) return;
+    try {
+      await Promise.all(
+        Array.from(selectedTaskIds).map((id) => deleteTask.mutateAsync(id))
+      );
+      toast({
+        title: 'Tasks deleted',
+        description: `${selectedTaskIds.size} task(s) have been removed.`,
+      });
+      setSelectedTaskIds(new Set());
+      setIsSelectionMode(false);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete some tasks. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!filteredTasks || filteredTasks.length === 0) return;
+    try {
+      await Promise.all(
+        filteredTasks.map((task) => deleteTask.mutateAsync(task.id))
+      );
+      toast({
+        title: 'All tasks deleted',
+        description: `${filteredTasks.length} task(s) have been removed.`,
+      });
+      setSelectedTaskIds(new Set());
+      setIsSelectionMode(false);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete tasks. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!filteredTasks) return;
+    if (selectedTaskIds.size === filteredTasks.length) {
+      setSelectedTaskIds(new Set());
+    } else {
+      setSelectedTaskIds(new Set(filteredTasks.map((t) => t.id)));
+    }
+  };
+
   const filteredTasks = tasks?.filter((task) => {
     if (statusFilter === 'all') return true;
     return task.status === statusFilter;
