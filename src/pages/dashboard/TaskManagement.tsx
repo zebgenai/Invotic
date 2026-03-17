@@ -57,6 +57,8 @@ const TaskManagement: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -148,6 +150,66 @@ const TaskManagement: React.FC = () => {
         description: 'Failed to delete task. Please try again.',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTaskIds.size === 0) return;
+    try {
+      await Promise.all(
+        Array.from(selectedTaskIds).map((id) => deleteTask.mutateAsync(id))
+      );
+      toast({
+        title: 'Tasks deleted',
+        description: `${selectedTaskIds.size} task(s) have been removed.`,
+      });
+      setSelectedTaskIds(new Set());
+      setIsSelectionMode(false);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete some tasks. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!filteredTasks || filteredTasks.length === 0) return;
+    try {
+      await Promise.all(
+        filteredTasks.map((task) => deleteTask.mutateAsync(task.id))
+      );
+      toast({
+        title: 'All tasks deleted',
+        description: `${filteredTasks.length} task(s) have been removed.`,
+      });
+      setSelectedTaskIds(new Set());
+      setIsSelectionMode(false);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete tasks. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!filteredTasks) return;
+    if (selectedTaskIds.size === filteredTasks.length) {
+      setSelectedTaskIds(new Set());
+    } else {
+      setSelectedTaskIds(new Set(filteredTasks.map((t) => t.id)));
     }
   };
 
@@ -380,6 +442,48 @@ const TaskManagement: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Bulk Actions Bar */}
+      {filteredTasks && filteredTasks.length > 0 && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button
+            variant={isSelectionMode ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              setIsSelectionMode(!isSelectionMode);
+              setSelectedTaskIds(new Set());
+            }}
+          >
+            <CheckSquare className="w-4 h-4 mr-2" />
+            {isSelectionMode ? 'Cancel Selection' : 'Select Tasks'}
+          </Button>
+          {isSelectionMode && (
+            <>
+              <Button variant="outline" size="sm" onClick={toggleSelectAll}>
+                {selectedTaskIds.size === filteredTasks.length ? 'Deselect All' : 'Select All'}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={selectedTaskIds.size === 0 || deleteTask.isPending}
+                onClick={handleBulkDelete}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Selected ({selectedTaskIds.size})
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={deleteTask.isPending}
+                onClick={handleDeleteAll}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete All ({filteredTasks.length})
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Tasks List */}
       {isLoading ? (
         <div className="text-center py-12">
@@ -400,11 +504,26 @@ const TaskManagement: React.FC = () => {
       ) : (
         <div className="space-y-3">
           {filteredTasks?.map((task) => (
-            <Card key={task.id} className="glass-card hover:border-primary/30 transition-colors">
+            <Card
+              key={task.id}
+              className={`glass-card hover:border-primary/30 transition-colors ${
+                selectedTaskIds.has(task.id) ? 'border-primary bg-primary/5' : ''
+              }`}
+              onClick={isSelectionMode ? () => toggleTaskSelection(task.id) : undefined}
+            >
               <CardContent className="py-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
-                    {getStatusIcon(task.status)}
+                    {isSelectionMode ? (
+                      <Checkbox
+                        checked={selectedTaskIds.has(task.id)}
+                        onCheckedChange={() => toggleTaskSelection(task.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-1"
+                      />
+                    ) : (
+                      getStatusIcon(task.status)
+                    )}
                     <div className="flex-1">
                       <h3 className="font-medium">{task.title}</h3>
                       {task.description && (
@@ -447,38 +566,40 @@ const TaskManagement: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {task.status !== 'completed' && (
+                  {!isSelectionMode && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {task.status !== 'completed' && (
+                          <DropdownMenuItem
+                            onClick={() => handleStatusChange(task.id, 'completed')}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Mark Complete
+                          </DropdownMenuItem>
+                        )}
+                        {task.status === 'todo' && (
+                          <DropdownMenuItem
+                            onClick={() => handleStatusChange(task.id, 'in_progress')}
+                          >
+                            <Clock className="w-4 h-4 mr-2" />
+                            Start Task
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem
-                          onClick={() => handleStatusChange(task.id, 'completed')}
+                          className="text-destructive"
+                          onClick={() => handleDelete(task.id)}
                         >
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Mark Complete
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
                         </DropdownMenuItem>
-                      )}
-                      {task.status === 'todo' && (
-                        <DropdownMenuItem
-                          onClick={() => handleStatusChange(task.id, 'in_progress')}
-                        >
-                          <Clock className="w-4 h-4 mr-2" />
-                          Start Task
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => handleDelete(task.id)}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               </CardContent>
             </Card>
